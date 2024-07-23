@@ -2,16 +2,16 @@
 [project]
 name = "drone-flightplan"
 version = "0.1.0"
-description = "Generates an optimized flight plan for drones to conduct precise and efficient aerial mapping.""
+description = "Generates an optimized flight plan for drones to conduct precise and efficient aerial mapping"
 authors = [
     {name = "Niraj Adhikari", email = "nrjadkry@gmail.com"},
 ]
-dependencies = []
+dependencies = [
+    "geojson>=3.1.0",
+]
 requires-python = ">=3.10"
 readme = "README.md"
-license = "AGPL-3.0-only"
-keywords = ["hot", "naxa", "drone"]
-
+license = {text = "AGPL-3.0-only"}
 
 [build-system]
 requires = ["pdm-backend"]
