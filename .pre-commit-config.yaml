@@ -1,0 +1,40 @@
+repos:
+  # Versioning: Commit messages & changelog
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v3.27.0
+    hooks:
+      - id: commitizen
+        stages: [commit-msg]
+
+  # Lint / autoformat: Python code
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # Ruff version.
+    rev: "v0.5.2"
+    hooks:
+      # Run the linter
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      # Run the formatter
+      - id: ruff-format
+
+  # Autoformat: YAML, JSON, Markdown, etc.
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v4.0.0-alpha.8
+    hooks:
+      - id: prettier
+        entry: env PRETTIER_LEGACY_CLI=1 prettier
+        args:
+          [
+            --ignore-unknown,
+            --no-error-on-unmatched-pattern,
+            "!osm_fieldwork/data_models/**",
+            "!osm_fieldwork/xlsforms/**",
+          ]
+
+  # Lint: Markdown
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.41.0
+    hooks:
+      - id: markdownlint
+        args:
+          [--fix, --disable, MD033, --ignore, CHANGELOG.md, --ignore, .github]
