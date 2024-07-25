@@ -1,8 +1,52 @@
 import logging
 import argparse
+import geojson
+
+from drone_flightplan.waypoints import create_waypoint
+from drone_flightplan.create_wpml import create_xml
+
 
 # Instantiate logger
 log = logging.getLogger(__name__)
+
+
+def generate_flightplan(
+    project_area,
+    agl,
+    forward_overlap=70.0,
+    side_overlap=70.0,
+    generate_each_points=False,
+    generate_3d=False,
+    output_file_path=None,
+):
+    """
+    Generate flight plan for drone missions.
+
+    Parameters
+        :project_area: Project area as geojson polygon.
+        :agl: Altitude above ground level in meters.
+        :forward_overlap: Forward overlap in percentage.
+        :side_overlap : Side overlap in percentage.
+        :generate_each_points: Generate waypoints or waylines.
+        :generate_3d: Generate 3D imagery.
+        :output_file_path: Output file path for the KMZ file.
+
+    Returns
+        Generates a flightplan kmz file in the output_file_path
+
+    """
+
+    waypoints = create_waypoint(
+        project_area,
+        agl,
+        forward_overlap,
+        side_overlap,
+        generate_each_points,
+        generate_3d,
+    )
+
+    # generate wpml file in output_file_path
+    create_xml(waypoints, "goHome", agl, output_file_path)
 
 
 def main():
@@ -51,21 +95,20 @@ def main():
 
     args = parser.parse_args()
 
-    # with open(args.project_geojson, "r") as f:
-    #     boundary = geojson.load(f)
+    with open(args.project_geojson, "r") as f:
+        boundary = geojson.load(f)
 
-    # features = boundary["features"]
+    features = boundary["features"]
 
-    # output_file = create_waypoint(
-    #     features,
-    #     args.altitude_above_ground_level,
-    #     args.forward_overlap,
-    #     args.side_overlap,
-    #     args.generate_each_points,
-    #     args.generate_3d,
-    #     args.output_file_path,
-    # )
-
+    generate_flightplan(
+        features,
+        args.altitude_above_ground_level,
+        args.forward_overlap,
+        args.side_overlap,
+        args.generate_each_points,
+        args.generate_3d,
+        args.output_file_path,
+    )
     log.info(f"Waypoints created and saved to: {args.output_file_path}")
 
 
