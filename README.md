@@ -1,4 +1,20 @@
-# Drone Flightplan Generator
+# Drone Flightplan
+<!-- markdownlint-disable -->
+<p align="center">
+  <img src="https://github.com/hotosm/fmtm/blob/main/images/hot_logo.png?raw=true" style="width: 200px;" alt="HOT"></a>
+</p>
+<p align="center">
+  <em>Generates waypoints for drone and creates a flightplan </em>
+</p>
+
+---
+
+📖 **Documentation**: <a href="https://hotosm.github.io/drone-flightplan/" target="_blank">https://hotosm.github.io/drone-flightplan/</a>
+
+🖥️ **Source Code**: <a href="https://github.com/hotosm/drone-flightplan" target="_blank">https://github.com/hotosm/drone-flightplan</a>
+
+---
+
 
 ## Overview
 The Drone Flightplan Generator is a Python package designed to automate the creation of flight plans for drones. This tool is essential for users needing efficient and precise aerial surveys, mapping, and imagery collection.
