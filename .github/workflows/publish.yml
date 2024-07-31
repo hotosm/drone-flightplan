@@ -1,0 +1,13 @@
+name: 🚩 Publish to PyPi.org
+
+on:
+  release:
+    types: [published]
+  # Allow manual trigger (workflow_dispatch)
+  workflow_dispatch:
+
+jobs:
+  publish_to_pypi:
+    uses: hotosm/gh-workflows/.github/workflows/pypi_publish.yml@1.2.4
+    secrets:
+      PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
