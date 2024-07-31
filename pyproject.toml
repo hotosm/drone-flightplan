@@ -15,6 +15,11 @@ requires-python = ">=3.10"
 readme = "README.md"
 license = {text = "AGPL-3.0-only"}
 
+[project.urls]
+homepage = "https://github.com/hotosm/drone-flightplan"
+repository = "https://github.com/hotosm/drone-flightplan"
+
+
 [build-system]
 requires = ["pdm-backend"]
 build-backend = "pdm.backend"
