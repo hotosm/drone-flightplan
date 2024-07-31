@@ -11,7 +11,7 @@ To install the package, use pip
 ### Usage
 To get the drone waypoints for a given Geojson Polygon AOI, we can do this:
 ```
-from drone_flightplan import create_waypoints
+from drone_flightplan.waypoints import create_waypoint
 
 create_waypoint(
         polygon_geojson,
