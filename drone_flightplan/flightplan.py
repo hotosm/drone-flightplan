@@ -56,7 +56,9 @@ def generate_flightplan(
     updated_waypoints = list(map(add_speed_and_agl, waypoints))
 
     # generate wpml file in output_file_path
-    create_xml(updated_waypoints, "goHome", agl, output_file_path)
+    output_file = create_xml(updated_waypoints, "goHome", agl, output_file_path)
+
+    return output_file
 
 
 def main():
