@@ -154,7 +154,7 @@ def create_placemark(
     execute_height,
     waypoint_speed,
     waypoint_heading_angle,
-    gimble_angle,
+    gimbal_angle,
     take_photo: bool = False,
 ):
     placemark = ET.Element("Placemark")
@@ -230,7 +230,7 @@ def create_placemark(
         take_photo_action(action_group1, "1")
     else:
         # Gimble rotate action
-        gimble_rotate_action(action_group1, "1", str(gimble_angle))
+        gimble_rotate_action(action_group1, "1", str(gimbal_angle))
 
     action_group2 = ET.SubElement(placemark, "wpml:actionGroup")
     action_group2_id = ET.SubElement(action_group2, "wpml:actionGroupId")
@@ -255,7 +255,7 @@ def create_placemark(
     gimbal_pitch_rotate_angle2 = ET.SubElement(
         action2_actuator_func_param, "wpml:gimbalPitchRotateAngle"
     )
-    gimbal_pitch_rotate_angle2.text = str(gimble_angle)
+    gimbal_pitch_rotate_angle2.text = str(gimbal_angle)
     payload_position_index2 = ET.SubElement(
         action2_actuator_func_param, "wpml:payloadPositionIndex"
     )

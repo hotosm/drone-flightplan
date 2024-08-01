@@ -2,7 +2,7 @@ import logging
 import argparse
 import geojson
 
-from drone_flightplan.waypoints import create_waypoint
+from drone_flightplan.waypoints import create_waypoint, calculate_parameters
 from drone_flightplan.create_wpml import create_xml
 
 
@@ -17,7 +17,7 @@ def generate_flightplan(
     side_overlap=70.0,
     generate_each_points=False,
     generate_3d=False,
-    output_file_path=None,
+    output_file_path="/tmp",
 ):
     """
     Generate flight plan for drone missions.
@@ -35,6 +35,7 @@ def generate_flightplan(
         Generates a flightplan kmz file in the output_file_path
 
     """
+    parameters = calculate_parameters(agl, forward_overlap, side_overlap)
 
     waypoints = create_waypoint(
         project_area,
@@ -45,8 +46,17 @@ def generate_flightplan(
         generate_3d,
     )
 
+    def add_speed_and_agl(placemark):
+        new_placemark = list(placemark.values())
+        new_placemark[0] = f"{new_placemark[0][0]},{new_placemark[0][1]}"
+        new_placemark.insert(1, str(agl))
+        new_placemark.insert(2, str(parameters["ground_speed"]))
+        return new_placemark
+
+    updated_waypoints = list(map(add_speed_and_agl, waypoints))
+
     # generate wpml file in output_file_path
-    create_xml(waypoints, "goHome", agl, output_file_path)
+    create_xml(updated_waypoints, "goHome", agl, output_file_path)
 
 
 def main():

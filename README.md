@@ -22,7 +22,7 @@ The Drone Flightplan Generator is a Python package designed to automate the crea
 ## Installation
 To install the package, use pip
 
-```pip install drone-flightplan-generator```
+```pip install drone-flightplan```
 
 ### Usage
 To get the drone waypoints for a given Geojson Polygon AOI, we can do this:
