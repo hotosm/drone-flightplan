@@ -9,10 +9,14 @@ from create_wpml import create_xml
 # Instantiate logger
 log = logging.getLogger(__name__)
 
+# Constant to convert gsd to Altitude above ground level
+GSD_to_AGL_CONST = 29.7  # For DJI Mini 4 Pro
+
 
 def generate_flightplan(
     project_area,
-    agl,
+    agl=None,
+    gsd=None,
     forward_overlap=70.0,
     side_overlap=70.0,
     generate_each_points=False,
@@ -35,6 +39,9 @@ def generate_flightplan(
         Generates a flightplan kmz file in the output_file_path
 
     """
+    if gsd:
+        agl = gsd * GSD_to_AGL_CONST
+
     parameters = calculate_parameters(agl, forward_overlap, side_overlap)
 
     waypoints = create_waypoint(
@@ -71,12 +78,20 @@ def main():
         type=str,
         help="The GeoJSON polygon representing the area of interest.",
     )
-    parser.add_argument(
+
+    group = parser.add_mutually_exclusive_group(required=True)
+
+    group.add_argument(
         "--altitude_above_ground_level",
-        required=True,
         type=float,
         help="The flight altitude in meters.",
     )
+    group.add_argument(
+        "--gsd",
+        type=float,
+        help="The flight altitude in meters.",
+    )
+
     parser.add_argument(
         "--forward_overlap",
         type=float,
@@ -110,11 +125,12 @@ def main():
     with open(args.project_geojson, "r") as f:
         boundary = geojson.load(f)
 
-    features = boundary["features"]
+    features = boundary["features"][0]
 
     generate_flightplan(
         features,
         args.altitude_above_ground_level,
+        args.gsd,
         args.forward_overlap,
         args.side_overlap,
         args.generate_each_points,
@@ -126,3 +142,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# python3 flightplan.py --project_geojson polygon.geojson  --altitude_above_ground_level 118 --output_file_path 0_1_sq_km_area_flight --forward_overlap 75 --side_overlap 70 --generate_3d
