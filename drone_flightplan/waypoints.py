@@ -432,7 +432,7 @@ def create_waypoint(
     forward_spacing = parameters["forward_spacing"]
 
     # transform to 3857
-    polygon = Polygon(project_area[0]["geometry"]["coordinates"][0])
+    polygon = Polygon(project_area["geometry"]["coordinates"][0])
 
     # Define the coordinate systems
     wgs84 = pyproj.CRS("EPSG:4326")
