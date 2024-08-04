@@ -2,12 +2,7 @@ import logging
 import argparse
 import pyproj
 import geojson
-from shapely.geometry import Polygon
-
-
-# Instantiate logger
-log = logging.getLogger(__name__)
-
+from shapely.geometry import Polygon, Point
 
 def calculate_parameters(
     agl: float,
@@ -71,7 +66,7 @@ def generate_waypoints_within_polygon(
     minx, miny, maxx, maxy = aoi.bounds
 
     centroid = aoi.centroid
-
+    # TODO: The centroid waypoint may not be necessary, as it always starts from the center of the areas. Instead, we could start from one side of the areas.
     waypoints = [
         {
             "coordinates": (centroid.x, centroid.y),
@@ -91,14 +86,18 @@ def generate_waypoints_within_polygon(
         x_row_waypoints = []
 
         while x <= maxx + 2 * distance_between_lines_x:
-            x_row_waypoints.append(
-                {
-                    "coordinates": (x, y),
-                    "angle": str(angle),
-                    "take_photo": True,
-                    "gimbal_angle": "-90",
-                }
-            )
+            waypoint = {
+                "coordinates": (x, y),
+                "angle": str(angle),
+                "take_photo": True,
+                "gimbal_angle": "-90",
+            }
+            point = Point(x, y)
+            if aoi.contains(point):
+                x_row_waypoints.append(waypoint)
+            else:
+                pass #TODO we can get waypoint outside from the polygon.
+
             x += distance_between_lines_x
         y += distance_between_lines_y
 
@@ -433,7 +432,7 @@ def create_waypoint(
     forward_spacing = parameters["forward_spacing"]
 
     # transform to 3857
-    polygon = Polygon(project_area["geometry"]["coordinates"][0])
+    polygon = Polygon(project_area[0]["geometry"]["coordinates"][0])
 
     # Define the coordinate systems
     wgs84 = pyproj.CRS("EPSG:4326")

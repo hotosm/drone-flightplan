@@ -111,7 +111,6 @@ if __name__ == "__main__":
 
     a = p.parse_args()
     print(a)
-
     # TODO generate the minx, miny, maxx, maxy coords from a bounding box of
     # a supplied Area of Interest (AOI) layer from a GIS file.
     # TODO Arbitrary rotation to any angle (currently only creates waypoints

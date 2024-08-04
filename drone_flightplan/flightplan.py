@@ -2,8 +2,8 @@ import logging
 import argparse
 import geojson
 
-from drone_flightplan.waypoints import create_waypoint, calculate_parameters
-from drone_flightplan.create_wpml import create_xml
+from waypoints import create_waypoint, calculate_parameters
+from create_wpml import create_xml
 
 
 # Instantiate logger
