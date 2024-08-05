@@ -469,6 +469,7 @@ def create_waypoint(
 
     waypoints_4326 = [
         {
+            "index": index,
             "coordinates": transformer_to_4326.transform(
                 wp["coordinates"][0], wp["coordinates"][1]
             ),
@@ -476,7 +477,7 @@ def create_waypoint(
             "take_photo": wp["take_photo"],
             "gimbal_angle": wp["gimbal_angle"],
         }
-        for wp in waypoints
+        for index, wp in enumerate(waypoints)
     ]
     return waypoints_4326
 
