@@ -1,7 +1,7 @@
 
 [project]
 name = "drone-flightplan"
-version = "0.1.2"
+version = "0.2.0"
 description = "Generates an optimized flight plan for drones to conduct precise and efficient aerial mapping"
 authors = [
     {name = "Niraj Adhikari", email = "nrjadkry@gmail.com"},
