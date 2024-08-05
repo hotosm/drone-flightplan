@@ -1,6 +1,8 @@
 import logging
 import argparse
 import geojson
+import pyproj
+import sampleRasterAtPoints as sr
 
 from drone_flightplan.waypoints import create_waypoint, calculate_parameters
 from drone_flightplan.create_wpml import create_xml
@@ -13,6 +15,36 @@ log = logging.getLogger(__name__)
 GSD_to_AGL_CONST = 29.7  # For DJI Mini 4 Pro
 
 
+def process_waypoints_with_terrain_follow(waypoints, input_raster):
+    # Define the coordinate systems
+    wgs84 = pyproj.CRS("EPSG:4326")
+    web_mercator = pyproj.CRS("EPSG:3857")
+
+    # Define a transformer to convert from WGS 84 to Web Mercator
+    transformer_to_3857 = pyproj.Transformer.from_crs(
+        wgs84, web_mercator, always_xy=True
+    )
+
+    # Transform coordinates and include index
+    points = [
+        (index,)
+        + transformer_to_3857.transform(
+            waypoint["coordinates"][0], waypoint["coordinates"][1]
+        )
+        for index, waypoint in enumerate(waypoints)
+    ]
+
+    # Sample elevation data at transformed points
+    grid_with_elevation = sr.sampleRasterFromPointsList(input_raster, points)
+
+    # Update drone altitude from ground level with according to elevation
+    base_elevation = grid_with_elevation[0][3]
+    for i in grid_with_elevation:
+        i.append(base_elevation - i[3])
+
+    return grid_with_elevation
+
+
 def generate_flightplan(
     project_area,
     agl=None,
@@ -21,6 +53,8 @@ def generate_flightplan(
     side_overlap=70.0,
     generate_each_points=False,
     generate_3d=False,
+    terrain_follow=False,
+    input_raster=None,
     output_file_path="/tmp",
 ):
     """
@@ -53,11 +87,26 @@ def generate_flightplan(
         generate_3d,
     )
 
+    if terrain_follow:
+        grid_with_elevation = process_waypoints_with_terrain_follow(
+            waypoints, input_raster
+        )
+
     def add_speed_and_agl(placemark):
-        new_placemark = list(placemark.values())
-        new_placemark[0] = f"{new_placemark[0][0]},{new_placemark[0][1]}"
-        new_placemark.insert(1, str(agl))
-        new_placemark.insert(2, str(parameters["ground_speed"]))
+        index = placemark["index"]
+
+        # 4th index is the elevation difference with reference to first point
+        agl_diff = grid_with_elevation[index][4] if terrain_follow else 0
+
+        new_placemark = []
+        new_placemark.append(
+            f"{placemark['coordinates'][0]},{placemark['coordinates'][1]}"
+        )
+        new_placemark.append(str(agl + agl_diff))
+        new_placemark.append(str(parameters["ground_speed"]))
+        new_placemark.append(str(placemark["angle"]))
+        new_placemark.append(str(placemark["take_photo"]))
+        new_placemark.append(str(placemark["gimbal_angle"]))
         return new_placemark
 
     updated_waypoints = list(map(add_speed_and_agl, waypoints))
@@ -114,6 +163,15 @@ def main():
     )
 
     parser.add_argument(
+        "--terrain_follow",
+        action="store_true",
+        help="Do you want to generate flight plan with terrain following",
+    )
+    parser.add_argument(
+        "--input_raster", type=str, help="Digital Elevation Model GeoTIFF file"
+    )
+
+    parser.add_argument(
         "--output_file_path",
         type=str,
         required=True,
@@ -121,6 +179,10 @@ def main():
     )
 
     args = parser.parse_args()
+
+    # Custom validation logic for terrain_follow
+    if args.terrain_follow and not args.input_raster:
+        parser.error("--input_raster is required when --terrain_follow is set")
 
     with open(args.project_geojson, "r") as f:
         boundary = geojson.load(f)
@@ -135,6 +197,8 @@ def main():
         args.side_overlap,
         args.generate_each_points,
         args.generate_3d,
+        args.terrain_follow,
+        args.input_raster,
         args.output_file_path,
     )
     log.info(f"Waypoints created and saved to: {args.output_file_path}")
@@ -144,4 +208,4 @@ if __name__ == "__main__":
     main()
 
 
-# python3 flightplan.py --project_geojson polygon.geojson  --altitude_above_ground_level 118 --output_file_path 0_1_sq_km_area_flight --forward_overlap 75 --side_overlap 70 --generate_3d
+# python3 flightplan.py --project_geojson '/home/niraj/NAXA/HOT/small_square.geojson'   --altitude_above_ground_level 118 --output_file_path output_path --forward_overlap 75 --side_overlap 70 --generate_3d --terrain_follow --input_raster '/home/niraj/NAXA/HOT/Kathmandu DEM/ALPSMLC30_N027E085_DSM.tif'
