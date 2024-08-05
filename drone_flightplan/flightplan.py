@@ -2,11 +2,9 @@ import logging
 import argparse
 import geojson
 import pyproj
-import sampleRasterAtPoints as sr
-
 from drone_flightplan.waypoints import create_waypoint, calculate_parameters
 from drone_flightplan.create_wpml import create_xml
-
+from drone_flightplan import sampleRasterAtPoints as sr
 
 # Instantiate logger
 log = logging.getLogger(__name__)
@@ -102,9 +100,9 @@ def generate_flightplan(
         new_placemark.append(
             f"{placemark['coordinates'][0]},{placemark['coordinates'][1]}"
         )
-        new_placemark.append(str(agl + agl_diff))
+        new_placemark.append(str(agl + agl_diff))  # altitude from ground level
         new_placemark.append(str(parameters["ground_speed"]))
-        new_placemark.append(str(placemark["angle"]))
+        new_placemark.append(str(placemark["angle"]))  # direction angle
         new_placemark.append(str(placemark["take_photo"]))
         new_placemark.append(str(placemark["gimbal_angle"]))
         return new_placemark
