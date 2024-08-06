@@ -23,8 +23,9 @@ repository = "https://github.com/hotosm/drone-flightplan"
 requires = ["pdm-backend"]
 build-backend = "pdm.backend"
 
-[tool.pdm]
-version = {from = "drone_flightplan/__version__.py"}
+[tool.pdm.version]
+source = "file"
+path = "./drone_flightplan/__version__.py"
 [tool.pdm.build]
 includes = ["drone_flightplan"]
 source-includes = ["LICENSE.md", "README.md"]
