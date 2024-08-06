@@ -25,6 +25,9 @@ build-backend = "pdm.backend"
 
 [tool.pdm]
 version = {from = "drone_flightplan/__version__.py"}
+[tool.pdm.build]
+includes = ["drone_flightplan"]
+source-includes = ["LICENSE.md", "README.md"]
 
 [tool.commitizen]
 name = "cz_conventional_commits"
