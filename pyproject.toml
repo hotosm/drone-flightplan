@@ -1,7 +1,6 @@
 
 [project]
 name = "drone-flightplan"
-version = "0.2.1"
 description = "Generates an optimized flight plan for drones to conduct precise and efficient aerial mapping"
 authors = [
     {name = "Niraj Adhikari", email = "nrjadkry@gmail.com"},
@@ -19,7 +18,19 @@ license = {text = "AGPL-3.0-only"}
 homepage = "https://github.com/hotosm/drone-flightplan"
 repository = "https://github.com/hotosm/drone-flightplan"
 
-
 [build-system]
 requires = ["pdm-backend"]
 build-backend = "pdm.backend"
+
+[tool.pdm]
+version = {from = "drone_flightplan/__version__.py"}
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+version = "0.2.1"
+version_files = [
+    "pyproject.toml:version",
+    "drone_flightplan/__version__.py",
+]
+changelog_file = "CHANGELOG.md"
+update_changelog_on_bump = true
