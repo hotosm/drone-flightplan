@@ -1,6 +1,7 @@
 
 [project]
 name = "drone-flightplan"
+dynamic = ["version"]
 description = "Generates an optimized flight plan for drones to conduct precise and efficient aerial mapping"
 authors = [
     {name = "Niraj Adhikari", email = "nrjadkry@gmail.com"},
