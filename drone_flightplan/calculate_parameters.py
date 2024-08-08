@@ -1,6 +1,8 @@
 import logging
 import argparse
 
+# Configure logging
+logging.basicConfig(level=logging.INFO, format="%(message)s")
 log = logging.getLogger(__name__)
 
 
@@ -53,8 +55,6 @@ def calculate_parameters(
     return {
         "forward_photo_height": round(forward_photo_height, 0),
         "side_photo_width": round(side_photo_width, 0),
-        "forward_overlap_distance": round(forward_overlap_distance, 2),
-        "side_overlap_distance": round(side_overlap_distance, 2),
         "forward_spacing": round(forward_spacing, 2),
         "side_spacing": round(side_spacing, 2),
         "ground_speed": round(ground_speed, 2),
@@ -100,13 +100,18 @@ def main():
 
     args = parser.parse_args()
 
-    return calculate_parameters(
+    results = calculate_parameters(
         args.forward_overlap,
         args.side_overlap,
         args.altitude_above_ground_level,
         args.gsd,
         args.image_interval,
     )
+
+    for key, value in results.items():
+        log.info(f"{key}: {value}")
+
+    return results
 
 
 if __name__ == "__main__":
