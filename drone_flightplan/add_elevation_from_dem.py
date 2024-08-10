@@ -11,19 +11,42 @@ Used from the command line, it expects the points to be a GeoJSON file on the
 local filesystem. 
 """
 
+import sys, os
 import argparse
 from osgeo import ogr, gdal, osr
 import math
 import struct
 import csv
 
-def addElevationFromDEM(raster_file, point_file, outfile):
+def raster_data_format_string(input_datatype: str):
+    """
+    Returns a format string for unpacking a c-style Struct object based
+    on the appropriate GDAL raster band data type. Probably not correct
+    for all data types; at the moment we're only concerned with the ones
+    likely to be encountered in Digital Elevation Models.
+    """
+    type_map = {
+        'Byte':    'b',
+        'Int8':    'b',
+        'UInt16':  '<H',
+        'Int16':   '<h',
+        'UInt32':  'L',
+        'Int32':   'l',
+        'UInt64':  'q',
+        'Int64':   'Q',
+        'Float32': 'f',
+        'Float64': 'd'
+        }
+    struct_data_type = type_map[input_datatype]
+    return struct_data_type
+    
+def add_elevation_from_dem(raster_file, points, outfile):
     """
     Arguments:
         DEM raster file as GeoTIFF
-        Points as GeoJSON file
+        Points as GeoJSON string
     Returns:
-        GeoJSON with added elevation attribute on each point
+        Writes GeoJSON file with added elevation attribute on each point
     """
     r = gdal.Open(raster_file)
     
@@ -31,19 +54,19 @@ def addElevationFromDEM(raster_file, point_file, outfile):
     # and set it to the CRS of the input raster
     rasterSR = osr.SpatialReference()
     rasterSR.ImportFromProj4(r.GetProjection())
-    print(f"\nRaster Coordinate Reference System: {rasterSR}")
+    print(f"\nRaster Coordinate Reference System: \n{rasterSR}")
 
     # Get the raster band (if it's a DEM, this should be the only band)
     # TODO this would be a good time to check that it's a single-band
     # raster with values that make sense for a DEM
     band = r.GetRasterBand(1)
 
-    # Determine the data type. The AW3D30 global 30-meter DEM is 32-bit floats,
-    # but other DEMs might contain other data types. At the moment we're not
-    # using this information to correctly unpack the data read from the band
-    # (we're assuming 16-bit little-endian signed int), but we should be.
+    # Determine the data type
     raster_data_type = gdal.GetDataTypeName(band.DataType)
     print(f'\nRaster band 1 data type: {raster_data_type}')
+    struct_data_type = raster_data_format_string(raster_data_type)
+    print(f'The GDAL data type is {raster_data_type}, which hopefully '
+          f'corresponds to a struct {struct_data_type} data type')
 
     # Create the tranforms between geographical and pixel coordinates
     # The forward transform takes pixel coords and returns geographical coords,
@@ -51,14 +74,12 @@ def addElevationFromDEM(raster_file, point_file, outfile):
     forward = r.GetGeoTransform()
     reverse = gdal.InvGeoTransform(forward)
 
-    p = ogr.Open(point_file)
+    p = ogr.Open(points)
     lyr = p.GetLayer()
-    print("\nPoint layer Coordinate Reference System:")
     pointSR = lyr.GetSpatialRef()
-    print(pointSR.GetName())
     pointLD = lyr.GetLayerDefn()
+    print(f'\nPoint layer Coordinate Reference System: {pointSR.GetName()}')
     
-
     transform = osr.CoordinateTransformation(pointSR, rasterSR)
 
     # Create the GDAL GeoJSON output file infrastructure
@@ -76,7 +97,7 @@ def addElevationFromDEM(raster_file, point_file, outfile):
         fd = pointLD.GetFieldDefn(i)
         fields.append(fd)
     for fd in fields:
-        print(f'\nAdding field {fd.name} of type {fd.GetTypeName()}.')
+        print(f'Adding field {fd.name} of type {fd.GetTypeName()}.')
         outLayer.CreateField(fd)
     featureDefn = outLayer.GetLayerDefn()
 
@@ -88,16 +109,19 @@ def addElevationFromDEM(raster_file, point_file, outfile):
         pixcoords = gdal.ApplyGeoTransform(reverse, mapX, mapY)
         pixX = math.floor(pixcoords[0])
         pixY = math.floor(pixcoords[1])
-        elevationstruct = band.ReadRaster(pixX, pixY, 1, 1)
-        # GDAL returns a C struct object when reading  a raster. Hassle.
-        # TODO: make sure the struct data type being unpacked is correct.
-        # For now using "<h" (16-bit signed little-endian int) works for the
-        # DEMS from AW3D30. All format strings are documented at:
-        # https://docs.python.org/3/library/struct.html,
-        # so we need to look at GDAL documentation of raster data type names
-        # and use raster band DataType to select the right format string.  
-        raster_data_type_format = '<h'
-        elevation = struct.unpack(raster_data_type_format, elevationstruct)[0]
+        elevation = 0
+        try:
+            elevationstruct = band.ReadRaster(pixX, pixY, 1, 1)
+            ele = struct.unpack(struct_data_type, elevationstruct)[0]
+            elevation = round(ele, 1)
+            if (elevation == -9999 or elevation == -9999.0):
+                # It's almost certainly a nodata value, possibly over water
+                elevation = 0
+        except Exception as e:
+            #print('Something went wrong with the raster sampling'
+            #      f' at point {geom.GetX()}, {geom.GetY()}')
+            #print(e)
+            pass
         new_point = ogr.Geometry(ogr.wkbPoint)
         new_point.AddPoint(geom.GetX(), geom.GetY(), elevation)
         outFeature = ogr.Feature(featureDefn)
@@ -117,5 +141,9 @@ if __name__ == "__main__":
     p.add_argument("outfile", help="output GeoJSON file")
 
     a = p.parse_args()
+
+    inpointsfile = open(a.inpoints, 'r')
+    points = inpointsfile.read()
     
-    writeout = addElevationFromDEM(a.inraster, a.inpoints, a.outfile)
+    writeout = add_elevation_from_dem(a.inraster, points, a.outfile)
+
