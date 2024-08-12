@@ -298,8 +298,8 @@ def generate_waypoints_within_polygon(
                         waypoints.append(x_row_waypoints[1])
                     waypoints.append(x_row_waypoints[0])
 
+                    # REFACTOR - This needs refactoring
                     if generate_3d:
-                        ## RETURN PATH
                         # Point Index 0
                         waypoints.append(
                             {
@@ -465,21 +465,27 @@ def create_waypoint(
         generate_3d,
     )
 
-    print("count of waypoints = ", len(waypoints))
+    log.info("count of waypoints = %d", len(waypoints))
 
-    waypoints_4326 = [
-        {
-            "index": index,
-            "coordinates": transformer_to_4326.transform(
-                wp["coordinates"][0], wp["coordinates"][1]
-            ),
-            "angle": wp["angle"],
-            "take_photo": wp["take_photo"],
-            "gimbal_angle": wp["gimbal_angle"],
-        }
-        for index, wp in enumerate(waypoints)
-    ]
-    return waypoints_4326
+    features = []
+    for index, wp in enumerate(waypoints):
+        coordinates_4326 = transformer_to_4326.transform(
+            wp["coordinates"][0], wp["coordinates"][1]
+        )
+        feature = geojson.Feature(
+            geometry=geojson.Point(coordinates_4326),
+            properties={
+                "index": index,
+                "angle": wp["angle"],
+                "take_photo": wp["take_photo"],
+                "gimbal_angle": wp["gimbal_angle"],
+            },
+        )
+        features.append(feature)
+
+    feature_collection = geojson.FeatureCollection(features)
+
+    return geojson.dumps(feature_collection, indent=2)
 
 
 def main():
@@ -519,6 +525,13 @@ def main():
         "--generate_3d", action="store_true", help="Do you want to generate 3D Imagery"
     )
 
+    parser.add_argument(
+        "--output_file_path",
+        type=str,
+        required=True,
+        help="The output file geojson file path for the waypoints file.",
+    )
+
     args = parser.parse_args()
 
     with open(args.project_geojson_polygon, "r") as f:
@@ -535,10 +548,14 @@ def main():
         args.generate_3d,
     )
 
+    # write into geojson file
+    with open(args.output_file_path, "w") as f:
+        f.write(coordinates)
+
     return coordinates
 
 
 if __name__ == "__main__":
     main()
 
-# python3 waypoints.py  --forward_overlap 80 --side_overlap 75 --project_geojson_polygon '/home/niraj/0_1_sq_km_above_bpbd_office.geojson' --altitude_above_ground_level 100
+# python3 waypoints.py  --forward_overlap 80 --side_overlap 75 --project_geojson_polygon '/home/niraj/0_1_sq_km_above_bpbd_office.geojson' --altitude_above_ground_level 100 --output_file_path '/tmp/output.geojson'
