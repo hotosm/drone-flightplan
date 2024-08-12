@@ -80,3 +80,9 @@ Parameters:
   - output_file_path: The path where you want your output flightplan
 
 ```
+
+#### Running with Docker CLI
+
+```sh
+$ docker run -it --volume <FILE_NAME>:<FILE_IN_CONTAINER> --rm flightplan <create_wpml.py | flightplan.py | flightPlanWaypointGenerator.py | sampleRasterAtPoints.py | waypoints.py> --forward_overlap 80 --side_overlap 75 --project_geojson_polygon /<FILE_IN_CONTAINER> --altitude_above_ground_level 100
+```
