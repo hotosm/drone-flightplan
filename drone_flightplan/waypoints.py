@@ -3,62 +3,11 @@ import argparse
 import pyproj
 import geojson
 from shapely.geometry import Polygon
+from drone_flightplan.calculate_parameters import calculate_parameters as cp
 
 
 # Instantiate logger
 log = logging.getLogger(__name__)
-
-
-def calculate_parameters(
-    agl: float,
-    forward_overlap: float,
-    side_overlap: float,
-):
-    """
-    Parameters
-    ---------------------------------
-    AGL(Altitude above ground level in meter ) = 115
-    Forward overlap = 75
-    Side overlap = 75
-
-    ## Fixed Parameters
-    Image interval = 2 sec
-    Vertical FOV = 0.71
-    Horizontal FOV = 1.26
-
-    Forward Photo height = AGL * Vertical_FOV = 115*0.71 = 81.65
-    Side Photo width = AGL * Horizontal_FOV = 115*1.26 = 144
-    forward overlap distance =  forward photo height * forward overlap = 75 / 100 * 81.65 = 61.5
-    side overlap distance = side photo width * side overlap = 75 / 100 * 144 = 108
-    forward spacing =  forward photo height - forward overlap distance = 81.65 - 61.5 = 20.15
-    side spacing = side photo width - side overlap distance = 144 - 108 = 36
-    ground speed = forward spacing / image interval = 10
-
-    """
-
-    # Constants
-    image_interval = 2
-    vertical_fov = 0.71
-    horizontal_fov = 1.26
-
-    # Calculations
-    forward_photo_height = agl * vertical_fov
-    side_photo_width = agl * horizontal_fov
-    forward_overlap_distance = forward_photo_height * forward_overlap / 100
-    side_overlap_distance = side_photo_width * side_overlap / 100
-    forward_spacing = forward_photo_height - forward_overlap_distance
-    side_spacing = side_photo_width - side_overlap_distance
-    ground_speed = forward_spacing / image_interval
-
-    return {
-        "forward_photo_height": round(forward_photo_height, 0),
-        "side_photo_width": round(side_photo_width, 0),
-        "forward_overlap_distance": round(forward_overlap_distance, 2),
-        "side_overlap_distance": round(side_overlap_distance, 2),
-        "forward_spacing": round(forward_spacing, 2),
-        "side_spacing": round(side_spacing, 2),
-        "ground_speed": round(ground_speed, 2),
-    }
 
 
 def generate_waypoints_within_polygon(
@@ -426,8 +375,7 @@ def create_waypoint(
         ]
 
     """
-
-    parameters = calculate_parameters(agl, forward_overlap, side_overlap)
+    parameters = cp.calculate_parameters(forward_overlap, side_overlap, agl)
 
     side_spacing = parameters["side_spacing"]
     forward_spacing = parameters["forward_spacing"]
