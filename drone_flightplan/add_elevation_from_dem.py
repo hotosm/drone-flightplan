@@ -8,15 +8,14 @@ However, it can be used standalone to sample a given DEM (GeoTIFF) at the
 points given by a given GeoJSON point layer.
 
 Used from the command line, it expects the points to be a GeoJSON file on the
-local filesystem. 
+local filesystem.
 """
 
-import sys, os
 import argparse
 from osgeo import ogr, gdal, osr
 import math
 import struct
-import csv
+
 
 def raster_data_format_string(input_datatype: str):
     """
@@ -26,20 +25,21 @@ def raster_data_format_string(input_datatype: str):
     likely to be encountered in Digital Elevation Models.
     """
     type_map = {
-        'Byte':    'b',
-        'Int8':    'b',
-        'UInt16':  '<H',
-        'Int16':   '<h',
-        'UInt32':  'L',
-        'Int32':   'l',
-        'UInt64':  'q',
-        'Int64':   'Q',
-        'Float32': 'f',
-        'Float64': 'd'
-        }
+        "Byte": "b",
+        "Int8": "b",
+        "UInt16": "<H",
+        "Int16": "<h",
+        "UInt32": "L",
+        "Int32": "l",
+        "UInt64": "q",
+        "Int64": "Q",
+        "Float32": "f",
+        "Float64": "d",
+    }
     struct_data_type = type_map[input_datatype]
     return struct_data_type
-    
+
+
 def add_elevation_from_dem(raster_file, points, outfile):
     """
     Arguments:
@@ -49,7 +49,7 @@ def add_elevation_from_dem(raster_file, points, outfile):
         Writes GeoJSON file with added elevation attribute on each point
     """
     r = gdal.Open(raster_file)
-    
+
     # Create an empty Spatial Reference object
     # and set it to the CRS of the input raster
     rasterSR = osr.SpatialReference()
@@ -63,10 +63,12 @@ def add_elevation_from_dem(raster_file, points, outfile):
 
     # Determine the data type
     raster_data_type = gdal.GetDataTypeName(band.DataType)
-    print(f'\nRaster band 1 data type: {raster_data_type}')
+    print(f"\nRaster band 1 data type: {raster_data_type}")
     struct_data_type = raster_data_format_string(raster_data_type)
-    print(f'The GDAL data type is {raster_data_type}, which hopefully '
-          f'corresponds to a struct {struct_data_type} data type')
+    print(
+        f"The GDAL data type is {raster_data_type}, which hopefully "
+        f"corresponds to a struct {struct_data_type} data type"
+    )
 
     # Create the tranforms between geographical and pixel coordinates
     # The forward transform takes pixel coords and returns geographical coords,
@@ -78,18 +80,18 @@ def add_elevation_from_dem(raster_file, points, outfile):
     lyr = p.GetLayer()
     pointSR = lyr.GetSpatialRef()
     pointLD = lyr.GetLayerDefn()
-    print(f'\nPoint layer Coordinate Reference System: {pointSR.GetName()}')
-    
+    print(f"\nPoint layer Coordinate Reference System: {pointSR.GetName()}")
+
     transform = osr.CoordinateTransformation(pointSR, rasterSR)
 
     # Create the GDAL GeoJSON output file infrastructure
-    outDriver = ogr.GetDriverByName('GeoJSON')
+    outDriver = ogr.GetDriverByName("GeoJSON")
     outDataSource = outDriver.CreateDataSource(outfile)
-    outLayer = outDataSource.CreateLayer('waypoints', pointSR, ogr.wkbPoint)
+    outLayer = outDataSource.CreateLayer("waypoints", pointSR, ogr.wkbPoint)
 
     # Add an elevation field for easy reference (the point is XYZ but
     # it's nice to have access to the elevation as a property)
-    elevation_field = ogr.FieldDefn('elevation', ogr.OFTReal)
+    elevation_field = ogr.FieldDefn("elevation", ogr.OFTReal)
     outLayer.CreateField(elevation_field)
     # Add fields from input layer to output layer
     fields = []
@@ -97,7 +99,7 @@ def add_elevation_from_dem(raster_file, points, outfile):
         fd = pointLD.GetFieldDefn(i)
         fields.append(fd)
     for fd in fields:
-        print(f'Adding field {fd.name} of type {fd.GetTypeName()}.')
+        print(f"Adding field {fd.name} of type {fd.GetTypeName()}.")
         outLayer.CreateField(fd)
     featureDefn = outLayer.GetLayerDefn()
 
@@ -114,24 +116,25 @@ def add_elevation_from_dem(raster_file, points, outfile):
             elevationstruct = band.ReadRaster(pixX, pixY, 1, 1)
             ele = struct.unpack(struct_data_type, elevationstruct)[0]
             elevation = round(ele, 1)
-            if (elevation == -9999 or elevation == -9999.0):
+            if elevation == -9999 or elevation == -9999.0:
                 # It's almost certainly a nodata value, possibly over water
                 elevation = 0
-        except Exception as e:
-            #print('Something went wrong with the raster sampling'
+        except Exception:
+            # print('Something went wrong with the raster sampling'
             #      f' at point {geom.GetX()}, {geom.GetY()}')
-            #print(e)
+            # print(e)
             pass
         new_point = ogr.Geometry(ogr.wkbPoint)
         new_point.AddPoint(geom.GetX(), geom.GetY(), elevation)
         outFeature = ogr.Feature(featureDefn)
         outFeature.SetGeometry(new_point)
-        outFeature.SetField('elevation', elevation)
+        outFeature.SetField("elevation", elevation)
         for fd in fields:
             val = feature.GetField(fd.name)
             outFeature.SetField(fd.name, val)
         outLayer.CreateFeature(outFeature)
     return 0
+
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
@@ -142,8 +145,7 @@ if __name__ == "__main__":
 
     a = p.parse_args()
 
-    inpointsfile = open(a.inpoints, 'r')
+    inpointsfile = open(a.inpoints, "r")
     points = inpointsfile.read()
-    
-    writeout = add_elevation_from_dem(a.inraster, points, a.outfile)
 
+    writeout = add_elevation_from_dem(a.inraster, points, a.outfile)

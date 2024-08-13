@@ -6,7 +6,6 @@ I couldn't be bothered to create a proper unit test.
 """
 
 import argparse
-import sys, os
 from addElevationFromDEM import add_elevation_from_dem as ae
 
 if __name__ == "__main__":
@@ -18,9 +17,8 @@ if __name__ == "__main__":
 
     a = p.parse_args()
 
-    infile = open(a.inpoints, 'r')
+    infile = open(a.inpoints, "r")
     inpointstring = infile.read()
-    
+
     waypoints_with_elevation = ae(a.inraster, inpointstring)
     print(waypoints_with_elevation)
-    
