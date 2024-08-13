@@ -1,3 +1,8 @@
+#!/usr/bin/python3
+"""
+Create waypoints in a polygon
+"""
+
 import logging
 import argparse
 import pyproj
@@ -516,7 +521,8 @@ def main():
         help="Do you want waypoints or waylines.",
     )
     parser.add_argument(
-        "--generate_3d", action="store_true", help="Do you want to generate 3D Imagery"
+        "--generate_3d", action="store_true",
+        help="Do you want to generate 3D Imagery"
     )
 
     args = parser.parse_args()
@@ -535,6 +541,8 @@ def main():
         args.generate_3d,
     )
 
+    for waypoint in coordinates:
+        print(waypoint)
     return coordinates
 
 
