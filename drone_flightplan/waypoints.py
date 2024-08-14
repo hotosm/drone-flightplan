@@ -484,10 +484,6 @@ def main():
 
     args = parser.parse_args()
 
-    # Custom validation logic for terrain_follow
-    if args.terrain_follow and not args.input_raster:
-        parser.error("--input_raster is required when --terrain_follow is set")
-
     with open(args.project_geojson_polygon, "r") as f:
         boundary = geojson.load(f)
 
