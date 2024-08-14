@@ -4,11 +4,7 @@ import pyproj
 import geojson
 from shapely.geometry import Polygon
 from drone_flightplan.calculate_parameters import calculate_parameters as cp
-from drone_flightplan.add_elevation_from_dem import (
-    add_elevation_from_dem as add_elevation,
-)
-# import calculate_parameters as cp
-# import add_elevation_from_dem as add_elevation
+
 
 # Instantiate logger
 log = logging.getLogger(__name__)
@@ -348,14 +344,7 @@ def generate_waypoints_within_polygon(
 
 
 def create_waypoint(
-    project_area,
-    agl,
-    forward_overlap,
-    side_overlap,
-    generate_each_points,
-    generate_3d,
-    terrain_follow,
-    input_raster,
+    project_area, agl, forward_overlap, side_overlap, generate_each_points, generate_3d
 ):
     """
     Create waypoints for a given project area based on specified parameters.
@@ -446,14 +435,6 @@ def create_waypoint(
 
     final_data = geojson.dumps(feature_collection, indent=2)
 
-    if terrain_follow:
-        add_elevation(input_raster, final_data, "/tmp/output_with_elevatio.geojson")
-
-        inpointsfile = open("/tmp/output_with_elevatio.geojson", "r")
-        points = inpointsfile.read()
-
-        return points
-
     return final_data
 
 
@@ -495,15 +476,6 @@ def main():
     )
 
     parser.add_argument(
-        "--terrain_follow",
-        action="store_true",
-        help="Do you want to generate flight plan with terrain following",
-    )
-    parser.add_argument(
-        "--input_raster", type=str, help="Digital Elevation Model GeoTIFF file"
-    )
-
-    parser.add_argument(
         "--output_file_path",
         type=str,
         required=True,
@@ -511,10 +483,6 @@ def main():
     )
 
     args = parser.parse_args()
-
-    # Custom validation logic for terrain_follow
-    if args.terrain_follow and not args.input_raster:
-        parser.error("--input_raster is required when --terrain_follow is set")
 
     with open(args.project_geojson_polygon, "r") as f:
         boundary = geojson.load(f)
@@ -528,8 +496,6 @@ def main():
         args.side_overlap,
         args.generate_each_points,
         args.generate_3d,
-        args.terrain_follow,
-        args.input_raster,
     )
 
     # write into geojson file
