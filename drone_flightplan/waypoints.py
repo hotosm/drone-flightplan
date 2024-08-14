@@ -484,6 +484,10 @@ def main():
 
     args = parser.parse_args()
 
+    # Custom validation logic for terrain_follow
+    if args.terrain_follow and not args.input_raster:
+        parser.error("--input_raster is required when --terrain_follow is set")
+
     with open(args.project_geojson_polygon, "r") as f:
         boundary = geojson.load(f)
 
@@ -508,4 +512,4 @@ def main():
 if __name__ == "__main__":
     main()
 
-# python3 waypoints.py  --forward_overlap 80 --side_overlap 75 --project_geojson_polygon '/home/niraj/NAXA/HOT/above_naxa_0_5_sq_km.geojson'  --altitude_above_ground_level 100 --output_file_path /home/niraj/NAXA/HOT/drone-flightplan/drone_flightplan/waypoints_2.geojson --terrain_follow --input_raster '/home/niraj/NAXA/HOT/Kathmandu DEM/dsm.tif
+# python3 waypoints.py  --forward_overlap 80 --side_overlap 75 --project_geojson_polygon '/home/niraj/NAXA/HOT/above_naxa_0_5_sq_km.geojson'  --altitude_above_ground_level 100 --output_file_path /home/niraj/NAXA/HOT/drone-flightplan/drone_flightplan/waypoints_2.geojson
