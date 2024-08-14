@@ -58,6 +58,7 @@ def calculate_parameters(
         "forward_spacing": round(forward_spacing, 2),
         "side_spacing": round(side_spacing, 2),
         "ground_speed": round(ground_speed, 2),
+        "altitude_above_ground_level": agl,
     }
 
 
