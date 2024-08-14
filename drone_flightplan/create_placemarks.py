@@ -67,6 +67,13 @@ def main(args_list: list[str] | None = None):
 
     args = parser.parse_args(args_list)
 
+    if "altitude_above_ground_level" not in args.parameters:
+        raise ValueError(
+            "altitude_above_ground_level is missing in the parameters json"
+        )
+    if "ground_speed" not in args.parameters:
+        raise ValueError("ground_speed is missing in the parameters")
+
     inpointsfile = open(args.waypoints_geojson, "r")
     points = inpointsfile.read()
 
@@ -78,3 +85,5 @@ def main(args_list: list[str] | None = None):
 
 if __name__ == "__main__":
     main()
+
+# python3 create_placemarks.py --waypoints_geojson '/home/niraj/NAXA/HOT/drone-flightplan/drone_flightplan/waypoints_2.geojson' --parameters '{"forward_photo_height": 84.0, "side_photo_width": 149.0, "forward_spacing": 20.95, "side_spacing": 44.6, "ground_speed": 10.47, "altitude_above_ground_level": 118}'
