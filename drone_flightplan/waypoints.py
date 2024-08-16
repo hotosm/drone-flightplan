@@ -344,7 +344,13 @@ def generate_waypoints_within_polygon(
 
 
 def create_waypoint(
-    project_area, agl, forward_overlap, side_overlap, generate_each_points, generate_3d
+    project_area,
+    agl,
+    gsd,
+    forward_overlap,
+    side_overlap,
+    generate_each_points=False,
+    generate_3d=False,
 ):
     """
     Create waypoints for a given project area based on specified parameters.
@@ -358,30 +364,39 @@ def create_waypoint(
         generate_3d (bool): Flag to determine if 3D waypoints should be generated.
 
     Returns:
-        list: List of waypoints generated within the project area.
+        geojson: waypoints generated within the project area in the geojson format
 
     Example Response:
-        [
-            {
-            "coordinates": [
-                85.3199287413415,
-                27.71246834707544
-            ],
-            "angle": "-90",
-            "take_photo": false,
-            "gimbal_angle": "-90"
-            },
-            ...
-        ]
+    {
+        "type": "FeatureCollection",
+            "features": [
+                {
+                "type": "Feature",
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [
+                    85.328347,
+                    27.729837
+                    ]
+                },
+                "properties": {
+                    "index": 0,
+                    "angle": "0",
+                    "take_photo": false,
+                    "gimbal_angle": "-90"
+                }
+            }
+        }
+    }
 
     """
-    parameters = cp.calculate_parameters(forward_overlap, side_overlap, agl)
+    parameters = cp.calculate_parameters(forward_overlap, side_overlap, agl, gsd)
 
     side_spacing = parameters["side_spacing"]
     forward_spacing = parameters["forward_spacing"]
 
     # transform to 3857
-    polygon = Polygon(project_area["geometry"]["coordinates"][0])
+    polygon = Polygon(project_area["features"][0]["geometry"]["coordinates"][0])
 
     # Define the coordinate systems
     wgs84 = pyproj.CRS("EPSG:4326")
@@ -487,10 +502,8 @@ def main():
     with open(args.project_geojson_polygon, "r") as f:
         boundary = geojson.load(f)
 
-    features = boundary["features"][0]
-
     coordinates = create_waypoint(
-        features,
+        boundary,
         args.altitude_above_ground_level,
         args.forward_overlap,
         args.side_overlap,
