@@ -3,7 +3,7 @@ import argparse
 import pyproj
 import geojson
 from shapely.geometry import Polygon
-from drone_flightplan.calculate_parameters import calculate_parameters as cp
+from drone_flightplan import calculate_parameters as cp
 
 
 # Instantiate logger
