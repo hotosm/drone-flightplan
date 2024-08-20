@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.3.0 (2024-08-20)
+
+### Feat
+
+- create_flightplan module
+
 ## 0.2.3 (2024-08-06)
 
 ### Fix
