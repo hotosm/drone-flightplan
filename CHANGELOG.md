@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.3.1rc1 (2024-08-20)
+
+### Fix
+
+- return path for flightplan
+
 ## 0.3.1rc0 (2024-08-20)
 
 ## 0.3.0 (2024-08-20)
