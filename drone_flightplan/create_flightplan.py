@@ -23,6 +23,7 @@ def create_flightplan(
     image_interval: int = 2,
     dem: str = None,
     outfile: str = None,
+    generate_each_points: bool = False,
 ):
     """
     Arguments:
@@ -40,7 +41,9 @@ def create_flightplan(
         forward_overlap, side_overlap, agl, gsd, image_interval
     )
 
-    waypoints = create_waypoint(aoi, agl, gsd, forward_overlap, side_overlap)
+    waypoints = create_waypoint(
+        aoi, agl, gsd, forward_overlap, side_overlap, generate_each_points
+    )
 
     # Add elevation data to the waypoints
     if dem:
@@ -104,6 +107,11 @@ def main():
 
     parser.add_argument("--inraster", help="input DEM GeoTIFF raster file")
     parser.add_argument("--outfile", required=True, help="output GeoJSON file")
+    parser.add_argument(
+        "--generate_each_points",
+        action="store_true",
+        help="Do you want waypoints or waylines.",
+    )
 
     args = parser.parse_args()
 
@@ -119,8 +127,12 @@ def main():
         args.image_interval,
         args.inraster,
         args.outfile,
+        args.generate_each_points,
     )
 
 
 if __name__ == "__main__":
     main()
+
+
+# python3 create_flightplan.py --project_geojson '/home/niraj/NAXA/HOT/adarsha_polygons_for_terrain_testing.geojson'  --altitude_above_ground_level 118 --forward_overlap 75 --side_overlap 70 --image_interval 2 --inraster '/home/niraj/Downloads/Bhanu.tif'  --outfile /home/niraj/NAXA/HOT/drone-flightplan/drone_flightplan --generate_each_points
