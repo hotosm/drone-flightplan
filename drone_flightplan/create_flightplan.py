@@ -58,8 +58,9 @@ def create_flightplan(
     placemarks = create_placemarks(geojson.loads(waypoints), parameters)
 
     # create wpml file
-    create_wpml(placemarks, outfile)
-    log.info(f"Flight plan generated in the path {outfile}")
+    outpath = create_wpml(placemarks, outfile)
+    log.info(f"Flight plan generated in the path {outpath}")
+    return outpath
 
 
 def main():
