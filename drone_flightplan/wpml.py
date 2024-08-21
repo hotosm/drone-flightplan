@@ -161,7 +161,7 @@ def create_placemark(placemark):
         coordinates = f"{coordinate[0]},{coordinate[1]}"
         execute_height = str(coordinate[2])
         waypoint_speed = placemark["properties"]["speed"]
-        waypoint_heading_angle = placemark["properties"]["angle"]
+        waypoint_heading_angle = placemark["properties"]["heading"]
         gimbal_angle = placemark["properties"]["gimbal_angle"]
         take_photo = placemark["properties"]["take_photo"]
     except IndexError as e:

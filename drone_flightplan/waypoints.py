@@ -439,7 +439,7 @@ def create_waypoint(
             geometry=geojson.Point(coordinates_4326),
             properties={
                 "index": index,
-                "angle": wp["angle"],
+                "heading": wp["angle"],
                 "take_photo": wp["take_photo"],
                 "gimbal_angle": wp["gimbal_angle"],
             },
