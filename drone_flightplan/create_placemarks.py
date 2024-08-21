@@ -37,6 +37,7 @@ def create_placemarks(
             coords.append(altitude)
 
         feature["properties"]["speed"] = ground_speed
+        feature["properties"]["altitude"] = altitude
 
     return waypoints_geojson
 
