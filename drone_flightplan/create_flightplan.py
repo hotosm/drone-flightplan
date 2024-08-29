@@ -9,7 +9,6 @@ from drone_flightplan.add_elevation_from_dem import add_elevation_from_dem
 from drone_flightplan.create_placemarks import create_placemarks
 from drone_flightplan.wpml import create_wpml
 
-
 # Instantiate logger
 log = logging.getLogger(__name__)
 
@@ -24,6 +23,7 @@ def create_flightplan(
     dem: str = None,
     outfile: str = None,
     generate_each_points: bool = False,
+    rotation_angle: float = 0.0,
 ):
     """
     Arguments:
@@ -33,6 +33,7 @@ def create_flightplan(
         agl: The altitude above ground level in meters.
         gsd: The ground sampling distance in meters.
         image_interval: The time interval between two consecutive images in seconds.
+        rotation_angle: The rotation angle for the flight grid in degrees.
     Returns:
         Drone Flightplan in kmz format
     """
@@ -42,7 +43,13 @@ def create_flightplan(
     )
 
     waypoints = create_waypoint(
-        aoi, agl, gsd, forward_overlap, side_overlap, generate_each_points
+        aoi,
+        agl,
+        gsd,
+        forward_overlap,
+        side_overlap,
+        generate_each_points,
+        rotation_angle,
     )
 
     # Add elevation data to the waypoints
@@ -84,7 +91,7 @@ def main():
     group.add_argument(
         "--gsd",
         type=float,
-        help="The flight altitude in meters.",
+        help="The ground sampling distance in meters.",
     )
 
     parser.add_argument(
@@ -113,6 +120,12 @@ def main():
         action="store_true",
         help="Do you want waypoints or waylines.",
     )
+    parser.add_argument(
+        "--rotation_angle",
+        type=float,
+        default=0.0,
+        help="The rotation angle for the flight grid in degrees.",
+    )
 
     args = parser.parse_args()
 
@@ -129,6 +142,7 @@ def main():
         args.inraster,
         args.outfile,
         args.generate_each_points,
+        args.rotation_angle,
     )
 
 
