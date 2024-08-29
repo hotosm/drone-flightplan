@@ -30,7 +30,7 @@ def create_placemarks(
         try:
             elevation = coords[2]
             difference_in_elevation = base_elevation - elevation
-            altitude = agl + difference_in_elevation
+            altitude = agl - difference_in_elevation
             coords[2] = altitude
         except IndexError:
             altitude = agl
