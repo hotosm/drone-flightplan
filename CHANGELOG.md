@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## 0.3.1rc2 (2024-08-29)
+
+## 0.3.1rc1 (2024-08-20)
+
+### Fix
+
+- return path for flightplan
+
+## 0.3.1rc0 (2024-08-20)
+
+## 0.3.0 (2024-08-20)
+
+### Feat
+
+- create_flightplan module
+
 ## 0.2.3 (2024-08-06)
 
 ### Fix

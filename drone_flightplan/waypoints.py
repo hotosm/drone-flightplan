@@ -8,62 +8,11 @@ import argparse
 import pyproj
 import geojson
 from shapely.geometry import Polygon
+from drone_flightplan import calculate_parameters as cp
 
 
 # Instantiate logger
 log = logging.getLogger(__name__)
-
-
-def calculate_parameters(
-    agl: float,
-    forward_overlap: float,
-    side_overlap: float,
-):
-    """
-    Parameters
-    ---------------------------------
-    AGL(Altitude above ground level in meter ) = 115
-    Forward overlap = 75
-    Side overlap = 75
-
-    ## Fixed Parameters
-    Image interval = 2 sec
-    Vertical FOV = 0.71
-    Horizontal FOV = 1.26
-
-    Forward Photo height = AGL * Vertical_FOV = 115*0.71 = 81.65
-    Side Photo width = AGL * Horizontal_FOV = 115*1.26 = 144
-    forward overlap distance =  forward photo height * forward overlap = 75 / 100 * 81.65 = 61.5
-    side overlap distance = side photo width * side overlap = 75 / 100 * 144 = 108
-    forward spacing =  forward photo height - forward overlap distance = 81.65 - 61.5 = 20.15
-    side spacing = side photo width - side overlap distance = 144 - 108 = 36
-    ground speed = forward spacing / image interval = 10
-
-    """
-
-    # Constants
-    image_interval = 2
-    vertical_fov = 0.71
-    horizontal_fov = 1.26
-
-    # Calculations
-    forward_photo_height = agl * vertical_fov
-    side_photo_width = agl * horizontal_fov
-    forward_overlap_distance = forward_photo_height * forward_overlap / 100
-    side_overlap_distance = side_photo_width * side_overlap / 100
-    forward_spacing = forward_photo_height - forward_overlap_distance
-    side_spacing = side_photo_width - side_overlap_distance
-    ground_speed = forward_spacing / image_interval
-
-    return {
-        "forward_photo_height": round(forward_photo_height, 0),
-        "side_photo_width": round(side_photo_width, 0),
-        "forward_overlap_distance": round(forward_overlap_distance, 2),
-        "side_overlap_distance": round(side_overlap_distance, 2),
-        "forward_spacing": round(forward_spacing, 2),
-        "side_spacing": round(side_spacing, 2),
-        "ground_speed": round(ground_speed, 2),
-    }
 
 
 def generate_waypoints_within_polygon(
@@ -303,8 +252,8 @@ def generate_waypoints_within_polygon(
                         waypoints.append(x_row_waypoints[1])
                     waypoints.append(x_row_waypoints[0])
 
+                    # REFACTOR - This needs refactoring
                     if generate_3d:
-                        ## RETURN PATH
                         # Point Index 0
                         waypoints.append(
                             {
@@ -400,7 +349,13 @@ def generate_waypoints_within_polygon(
 
 
 def create_waypoint(
-    project_area, agl, forward_overlap, side_overlap, generate_each_points, generate_3d
+    project_area,
+    agl,
+    gsd,
+    forward_overlap,
+    side_overlap,
+    generate_each_points=False,
+    generate_3d=False,
 ):
     """
     Create waypoints for a given project area based on specified parameters.
@@ -414,31 +369,39 @@ def create_waypoint(
         generate_3d (bool): Flag to determine if 3D waypoints should be generated.
 
     Returns:
-        list: List of waypoints generated within the project area.
+        geojson: waypoints generated within the project area in the geojson format
 
     Example Response:
-        [
-            {
-            "coordinates": [
-                85.3199287413415,
-                27.71246834707544
-            ],
-            "angle": "-90",
-            "take_photo": false,
-            "gimbal_angle": "-90"
-            },
-            ...
-        ]
+    {
+        "type": "FeatureCollection",
+            "features": [
+                {
+                "type": "Feature",
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [
+                    85.328347,
+                    27.729837
+                    ]
+                },
+                "properties": {
+                    "index": 0,
+                    "angle": "0",
+                    "take_photo": false,
+                    "gimbal_angle": "-90"
+                }
+            }
+        }
+    }
 
     """
-
-    parameters = calculate_parameters(agl, forward_overlap, side_overlap)
+    parameters = cp.calculate_parameters(forward_overlap, side_overlap, agl, gsd)
 
     side_spacing = parameters["side_spacing"]
     forward_spacing = parameters["forward_spacing"]
 
     # transform to 3857
-    polygon = Polygon(project_area["geometry"]["coordinates"][0])
+    polygon = Polygon(project_area["features"][0]["geometry"]["coordinates"][0])
 
     # Define the coordinate systems
     wgs84 = pyproj.CRS("EPSG:4326")
@@ -470,21 +433,29 @@ def create_waypoint(
         generate_3d,
     )
 
-    print("count of waypoints = ", len(waypoints))
+    log.info("count of waypoints = %d", len(waypoints))
 
-    waypoints_4326 = [
-        {
-            "index": index,
-            "coordinates": transformer_to_4326.transform(
-                wp["coordinates"][0], wp["coordinates"][1]
-            ),
-            "angle": wp["angle"],
-            "take_photo": wp["take_photo"],
-            "gimbal_angle": wp["gimbal_angle"],
-        }
-        for index, wp in enumerate(waypoints)
-    ]
-    return waypoints_4326
+    features = []
+    for index, wp in enumerate(waypoints):
+        coordinates_4326 = transformer_to_4326.transform(
+            wp["coordinates"][0], wp["coordinates"][1]
+        )
+        feature = geojson.Feature(
+            geometry=geojson.Point(coordinates_4326),
+            properties={
+                "index": index,
+                "heading": wp["angle"],
+                "take_photo": wp["take_photo"],
+                "gimbal_angle": wp["gimbal_angle"],
+            },
+        )
+        features.append(feature)
+
+    feature_collection = geojson.FeatureCollection(features)
+
+    final_data = geojson.dumps(feature_collection, indent=2)
+
+    return final_data
 
 
 def main():
@@ -525,15 +496,20 @@ def main():
         help="Do you want to generate 3D Imagery"
     )
 
+    parser.add_argument(
+        "--output_file_path",
+        type=str,
+        required=True,
+        help="The output file geojson file path for the waypoints file.",
+    )
+
     args = parser.parse_args()
 
     with open(args.project_geojson_polygon, "r") as f:
         boundary = geojson.load(f)
 
-    features = boundary["features"][0]
-
     coordinates = create_waypoint(
-        features,
+        boundary,
         args.altitude_above_ground_level,
         args.forward_overlap,
         args.side_overlap,
@@ -541,12 +517,19 @@ def main():
         args.generate_3d,
     )
 
+<<<<<<< HEAD
     for waypoint in coordinates:
         print(waypoint)
+=======
+    # write into geojson file
+    with open(args.output_file_path, "w") as f:
+        f.write(coordinates)
+
+>>>>>>> main
     return coordinates
 
 
 if __name__ == "__main__":
     main()
 
-# python3 waypoints.py  --forward_overlap 80 --side_overlap 75 --project_geojson_polygon '/home/niraj/0_1_sq_km_above_bpbd_office.geojson' --altitude_above_ground_level 100
+# python3 waypoints.py  --forward_overlap 80 --side_overlap 75 --project_geojson_polygon '/home/niraj/NAXA/HOT/above_naxa_0_5_sq_km.geojson'  --altitude_above_ground_level 100 --output_file_path /home/niraj/NAXA/HOT/drone-flightplan/drone_flightplan/waypoints_2.geojson
