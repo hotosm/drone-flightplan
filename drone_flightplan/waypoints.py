@@ -27,7 +27,7 @@ def generate_grid_in_aoi(aoi_polygon, x_spacing, y_spacing):
     return points
 
 
-def create_path(points, generate_3d=False):
+def create_path(points, generate_3d=False, buffer_distance=10):
     rows = {}
     for point in points:
         row_key = round(point.y, 8)
@@ -41,6 +41,30 @@ def create_path(points, generate_3d=False):
         if idx % 2 == 1:
             row_points.reverse()
 
+        # initialize points at the start and end of each row
+        first_point = row_points[0]
+        last_point = row_points[-1]
+
+        # define coordinates for extra points
+        start_extra_point = Point(
+            first_point.x - (buffer_distance if idx % 2 == 0 else -buffer_distance),
+            first_point.y,
+        )
+        end_extra_point = Point(
+            last_point.x + (buffer_distance if idx % 2 == 0 else -buffer_distance),
+            last_point.y,
+        )
+
+        # Add the extra points with no photo taken
+        continuous_path.append(
+            {
+                "coordinates": start_extra_point,
+                "angle": -90 if idx % 2 == 0 else 90,
+                "take_photo": False,
+                "gimbal_angle": "-90",
+            }
+        )
+
         # Add each point with its associated properties
         for point in row_points:
             continuous_path.append(
@@ -51,6 +75,16 @@ def create_path(points, generate_3d=False):
                     "gimbal_angle": "-90",
                 }
             )
+
+        # Add the extra point at the end with no photo taken
+        continuous_path.append(
+            {
+                "coordinates": end_extra_point,
+                "angle": -90 if idx % 2 == 0 else 90,
+                "take_photo": False,
+                "gimbal_angle": "-90",
+            }
+        )
 
         if generate_3d:
             continuous_path.extend(
