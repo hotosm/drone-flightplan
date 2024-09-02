@@ -23,11 +23,18 @@ def generate_grid_in_aoi(aoi_polygon, x_spacing, y_spacing):
             point = Point(x, y)
             if aoi_polygon.contains(point):
                 points.append(point)
+            # Add only unique points that are near the edges of the polygon
+            offset_point = Point(x + x_spacing, y)
+            if (
+                aoi_polygon.contains(offset_point)
+                or aoi_polygon.distance(offset_point) <= x_spacing / 3
+            ):
+                points.append(offset_point)
 
     return points
 
 
-def create_path(points, generate_3d=False, buffer_distance=10):
+def create_path(points, forward_spacing, generate_3d=False):
     rows = {}
     for point in points:
         row_key = round(point.y, 8)
@@ -47,11 +54,11 @@ def create_path(points, generate_3d=False, buffer_distance=10):
 
         # define coordinates for extra points
         start_extra_point = Point(
-            first_point.x - (buffer_distance if idx % 2 == 0 else -buffer_distance),
+            first_point.x - (forward_spacing if idx % 2 == 0 else -forward_spacing),
             first_point.y,
         )
         end_extra_point = Point(
-            last_point.x + (buffer_distance if idx % 2 == 0 else -buffer_distance),
+            last_point.x + (forward_spacing if idx % 2 == 0 else -forward_spacing),
             last_point.y,
         )
 
@@ -206,22 +213,25 @@ def create_waypoint(
 
     polygon_3857 = transform(transformer_to_3857, polygon)
 
-    # Rotate the polygon to the specified angle
+    # Calculate the centroid for centering the grid
+    centroid = polygon_3857.centroid
+
+    # Rotate the polygon to the specified angle around the centroid
     rotated_polygon = rotate(
-        polygon_3857, rotation_angle, origin="centroid", use_radians=False
+        polygon_3857, rotation_angle, origin=centroid, use_radians=False
     )
 
     # Generate waypoints in the rotated AOI
     grid = generate_grid_in_aoi(rotated_polygon, forward_spacing, side_spacing)
 
     # Create path and rotate back to the original angle
-    waypoints = create_path(grid, generate_3d=generate_3d)
+    waypoints = create_path(grid, forward_spacing, generate_3d=generate_3d)
     waypoints = [
         {
             "coordinates": rotate(
                 wp["coordinates"],
                 -rotation_angle,
-                origin=rotated_polygon.centroid,
+                origin=centroid,
                 use_radians=False,
             ),
             "angle": wp["angle"],
