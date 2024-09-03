@@ -2,7 +2,7 @@ import logging
 import argparse
 import pyproj
 import geojson
-from shapely.geometry import Point, shape
+from shapely.geometry import Point, shape, Polygon
 from shapely.affinity import rotate
 from shapely.ops import transform
 from drone_flightplan.calculate_parameters import calculate_parameters as cp
@@ -10,7 +10,20 @@ from drone_flightplan.calculate_parameters import calculate_parameters as cp
 log = logging.getLogger(__name__)
 
 
-def generate_grid_in_aoi(aoi_polygon, x_spacing, y_spacing):
+def generate_grid_in_aoi(
+    aoi_polygon: shape, x_spacing: float, y_spacing: float
+) -> list[Point]:
+    """
+    Generate a grid of points within a given Area of Interest (AOI) polygon.
+
+    Parameters:
+        aoi_polygon (shape): The Shapely shape representing the area of interest.
+        x_spacing (float): The spacing between points along the x-axis (in meters).
+        y_spacing (float): The spacing between points along the y-axis (in meters).
+
+    Returns:
+        list[Point]: A list of Points representing the generated grid within the AOI.
+    """
     minx, miny, maxx, maxy = aoi_polygon.bounds
     xpoints = int((maxx - minx) / x_spacing) + 1
     ypoints = int((maxy - miny) / y_spacing) + 1
@@ -34,7 +47,20 @@ def generate_grid_in_aoi(aoi_polygon, x_spacing, y_spacing):
     return points
 
 
-def create_path(points, forward_spacing, generate_3d=False):
+def create_path(
+    points: list[Point], forward_spacing: float, generate_3d: bool = False
+) -> list[dict]:
+    """
+    Create a continuous path of waypoints from a grid of points.
+
+    Parameters:
+        points (list[Point]): A list of Points representing the grid.
+        forward_spacing (float): The spacing between rows of points (in meters).
+        generate_3d (bool): Whether to generate additional 3D waypoints for the path.
+
+    Returns:
+        list[dict]: A list of dictionaries representing the waypoints along the path.
+    """
     rows = {}
     for point in points:
         row_key = round(point.y, 8)
@@ -103,7 +129,20 @@ def create_path(points, forward_spacing, generate_3d=False):
     return continuous_path
 
 
-def generate_3d_waypoints(row_points, angle, row_index):
+def generate_3d_waypoints(
+    row_points: list[Point], row_index: int, angle: int
+) -> list[dict]:
+    """
+    Generate additional 3D waypoints by alternating the gimbal angle for each row.
+
+    Parameters:
+        row_points (list[Point]): A list of Points in the current row.
+        row_index (int): The index of the current row.
+        angle (int): The angle at which the gimbal should be tilted.
+
+    Returns:
+        list[dict]: A list of dictionaries representing the additional 3D waypoints.
+    """
     # Return path with -45 degree angle
     return_path = [
         {
@@ -137,7 +176,17 @@ def generate_3d_waypoints(row_points, angle, row_index):
     return return_path + forward_path
 
 
-def exclude_no_fly_zones(points, no_fly_zones):
+def exclude_no_fly_zones(points: list[dict], no_fly_zones: list[Polygon]) -> list[dict]:
+    """
+    Exclude waypoints that fall within defined no-fly zones.
+
+    Parameters:
+        points (list[dict]): A list of waypoints.
+        no_fly_zones (list[Polygon]): A list of Polygons representing no-fly zones.
+
+        Returns:
+        list[dict]: A list of waypoints excluding those within no-fly zones.
+    """
     return [
         point
         for point in points
@@ -146,28 +195,29 @@ def exclude_no_fly_zones(points, no_fly_zones):
 
 
 def create_waypoint(
-    project_area,
-    agl,
-    gsd,
-    forward_overlap,
-    side_overlap,
-    rotation_angle=0.0,
-    generate_each_points=False,
-    generate_3d=False,
-    no_fly_zones=None,
-):
+    project_area: dict,
+    agl: float,
+    gsd: float,
+    forward_overlap: float,
+    side_overlap: float,
+    rotation_angle: float = 0.0,
+    generate_each_points: bool = False,
+    generate_3d: bool = False,
+    no_fly_zones: dict = None,
+) -> str:
     """
     Create waypoints for a given project area based on specified parameters.
 
     Parameters:
         project_area (dict): GeoJSON dictionary representing the project area.
         agl (float): Altitude above ground level.
+        gsd (float): Ground Sampling Distance.
         forward_overlap (float): Forward overlap percentage for the waypoints.
         side_overlap (float): Side overlap percentage for the waypoints.
         rotation_angle (float): The rotation angle for the flight grid in degrees.
-        generate_each_points (bool): Flag to determine if each point should be generated.
+        generate_each_points (bool): Flag to determine if each point should be generated densely.
         generate_3d (bool): Flag to determine if 3D waypoints should be generated.
-
+        no_fly_zones (dict, optional): GeoJSON dictionary representing no-fly zones.
     Returns:
         geojson: waypoints generated within the project area in the geojson format
 
@@ -267,6 +317,10 @@ def create_waypoint(
 
 
 def main():
+    """
+    The main entry point of the script. Parses command-line arguments and
+    generates waypoints for a drone mission based on the provided parameters.
+    """
     parser = argparse.ArgumentParser(
         description="Generate waypoints for drone missions."
     )
@@ -304,7 +358,7 @@ def main():
         "--generate_each_points", action="store_true", help="Generate dense waypoints."
     )
     parser.add_argument(
-        "--generate_3d", action="store_true", help="Generate 3D Imagery."
+        "--generate_3d", action="store_true", help="Generate 3D imagery."
     )
     parser.add_argument(
         "--no_fly_zones", type=str, help="GeoJSON file containing no-fly zones."
@@ -313,7 +367,7 @@ def main():
         "--output_file_path",
         type=str,
         required=True,
-        help="The output file geojson file path for the waypoints file.",
+        help="The output GeoJSON file path for the waypoints.",
     )
 
     args = parser.parse_args()

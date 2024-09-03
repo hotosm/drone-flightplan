@@ -31,7 +31,7 @@ def create_flightplan(
         forward_overlap: The forward overlap in percentage.
         side_overlap: The side overlap in percentage.
         agl: The altitude above ground level in meters.
-        gsd: The ground sampling distance in meters.
+        gsd: The ground sampling distance in cm/px.
         image_interval: The time interval between two consecutive images in seconds.
         rotation_angle: The rotation angle for the flight grid in degrees.
     Returns:
@@ -91,7 +91,7 @@ def main():
     group.add_argument(
         "--gsd",
         type=float,
-        help="The ground sampling distance in meters.",
+        help="The ground sampling distance in cm/px.",
     )
 
     parser.add_argument(
