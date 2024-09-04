@@ -2,367 +2,222 @@ import logging
 import argparse
 import pyproj
 import geojson
-from shapely.geometry import Polygon
-from drone_flightplan import calculate_parameters as cp
+from shapely.geometry import Point, shape, Polygon
+from shapely.affinity import rotate
+from shapely.ops import transform
+from drone_flightplan.calculate_parameters import calculate_parameters as cp
 
-
-# Instantiate logger
 log = logging.getLogger(__name__)
 
 
-def generate_waypoints_within_polygon(
-    aoi: Polygon,
-    distance_between_lines_x: float,
-    distance_between_lines_y: float,
-    generate_each_points: bool,
-    generate_3d: bool,
-):
-    minx, miny, maxx, maxy = aoi.bounds
+def generate_grid_in_aoi(
+    aoi_polygon: shape, x_spacing: float, y_spacing: float
+) -> list[Point]:
+    """
+    Generate a grid of points within a given Area of Interest (AOI) polygon.
 
-    centroid = aoi.centroid
+    Parameters:
+        aoi_polygon (shape): The Shapely shape representing the area of interest.
+        x_spacing (float): The spacing between points along the x-axis (in meters).
+        y_spacing (float): The spacing between points along the y-axis (in meters).
 
-    waypoints = [
-        {
-            "coordinates": (centroid.x, centroid.y),
-            "angle": "0",
-            "take_photo": False,
-            "gimbal_angle": "-90",
-        }
-    ]
+    Returns:
+        list[Point]: A list of Points representing the generated grid within the AOI.
+    """
+    minx, miny, maxx, maxy = aoi_polygon.bounds
+    xpoints = int((maxx - minx) / x_spacing) + 1
+    ypoints = int((maxy - miny) / y_spacing) + 1
 
-    # Generate waypoints within the polygon
-    y = miny
-    row_count = 0
-    angle = -90
+    points = []
+    for yi in range(ypoints):
+        for xi in range(xpoints):
+            x = minx + xi * x_spacing
+            y = miny + yi * y_spacing
+            point = Point(x, y)
+            if aoi_polygon.contains(point):
+                points.append(point)
+            # Add only unique points that are near the edges of the polygon
+            offset_point = Point(x + x_spacing, y)
+            if (
+                aoi_polygon.contains(offset_point)
+                or aoi_polygon.distance(offset_point) <= x_spacing / 3
+            ):
+                points.append(offset_point)
 
-    while y <= maxy:
-        x = minx - distance_between_lines_x
-        x_row_waypoints = []
+    return points
 
-        while x <= maxx + 2 * distance_between_lines_x:
-            x_row_waypoints.append(
+
+def create_path(
+    points: list[Point], forward_spacing: float, generate_3d: bool = False
+) -> list[dict]:
+    """
+    Create a continuous path of waypoints from a grid of points.
+
+    Parameters:
+        points (list[Point]): A list of Points representing the grid.
+        forward_spacing (float): The spacing between rows of points (in meters).
+        generate_3d (bool): Whether to generate additional 3D waypoints for the path.
+
+    Returns:
+        list[dict]: A list of dictionaries representing the waypoints along the path.
+    """
+    rows = {}
+    for point in points:
+        row_key = round(point.y, 8)
+        if row_key not in rows:
+            rows[row_key] = []
+        rows[row_key].append(point)
+
+    continuous_path = []
+    for idx, row in enumerate(sorted(rows.keys())):
+        row_points = sorted(rows[row], key=lambda p: p.x)
+        if idx % 2 == 1:
+            row_points.reverse()
+
+        # initialize points at the start and end of each row
+        first_point = row_points[0]
+        last_point = row_points[-1]
+
+        # define coordinates for extra points
+        start_extra_point = Point(
+            first_point.x - (forward_spacing if idx % 2 == 0 else -forward_spacing),
+            first_point.y,
+        )
+        end_extra_point = Point(
+            last_point.x + (forward_spacing if idx % 2 == 0 else -forward_spacing),
+            last_point.y,
+        )
+
+        # Add the extra points with no photo taken
+        continuous_path.append(
+            {
+                "coordinates": start_extra_point,
+                "angle": -90 if idx % 2 == 0 else 90,
+                "take_photo": False,
+                "gimbal_angle": "-90",
+            }
+        )
+
+        # Add each point with its associated properties
+        for point in row_points:
+            continuous_path.append(
                 {
-                    "coordinates": (x, y),
-                    "angle": str(angle),
+                    "coordinates": point,
+                    "angle": -90 if idx % 2 == 0 else 90,
                     "take_photo": True,
                     "gimbal_angle": "-90",
                 }
             )
-            x += distance_between_lines_x
-        y += distance_between_lines_y
 
-        if generate_each_points:
-            if row_count % 2 == 0:
-                # Forward path
-                first_point = x_row_waypoints[0].copy()
-                first_point["take_photo"] = False
-                waypoints.append(first_point)
-                waypoints.extend(x_row_waypoints[1:-1])
-                last_point = x_row_waypoints[-1].copy()
-                last_point["take_photo"] = False
-                waypoints.append(last_point)
+        # Add the extra point at the end with no photo taken
+        continuous_path.append(
+            {
+                "coordinates": end_extra_point,
+                "angle": -90 if idx % 2 == 0 else 90,
+                "take_photo": False,
+                "gimbal_angle": "-90",
+            }
+        )
 
-                if generate_3d:
-                    # Return path with -45 degree angle
-                    return_path = [
-                        {
-                            "coordinates": wp["coordinates"],
-                            "angle": str(angle * -1),
-                            "take_photo": True,
-                            "gimbal_angle": "-45",
-                        }
-                        for wp in reversed(x_row_waypoints)
-                    ]
+        if generate_3d:
+            continuous_path.extend(
+                generate_3d_waypoints(
+                    row_points, idx, angle=(-90 if idx % 2 == 0 else 90)
+                )
+            )
 
-                    # do not take picture in first and last point
-                    return_path[0]["take_photo"] = False
-                    return_path[-1]["take_photo"] = False
+    return continuous_path
 
-                    waypoints.extend(return_path)
 
-                    # return path with 45 degree angle
-                    forward_path = [
-                        {
-                            "coordinates": wp["coordinates"],
-                            "angle": str(angle),
-                            "take_photo": True,
-                            "gimbal_angle": "-45",
-                        }
-                        for wp in x_row_waypoints
-                    ]
+def generate_3d_waypoints(
+    row_points: list[Point], row_index: int, angle: int
+) -> list[dict]:
+    """
+    Generate additional 3D waypoints by alternating the gimbal angle for each row.
 
-                    # do not take picture in first and last point
-                    forward_path[0]["take_photo"] = False
-                    forward_path[-1]["take_photo"] = False
-                    waypoints.extend(forward_path)
+    Parameters:
+        row_points (list[Point]): A list of Points in the current row.
+        row_index (int): The index of the current row.
+        angle (int): The angle at which the gimbal should be tilted.
 
-            else:
-                last_point = x_row_waypoints[-1].copy()
-                last_point["take_photo"] = False
-                waypoints.append(last_point)
-                waypoints.extend(reversed(x_row_waypoints[1:-1]))
-                first_point = x_row_waypoints[0].copy()
-                first_point["take_photo"] = False
-                waypoints.append(first_point)
-
-                if generate_3d:
-                    # Return path with -45 degree angle
-                    return_path = [
-                        {
-                            "coordinates": wp["coordinates"],
-                            "angle": str(angle * -1),
-                            "take_photo": True,
-                            "gimbal_angle": "45",
-                        }
-                        for wp in x_row_waypoints
-                    ]
-                    # do not take picture in first and last point
-                    return_path[0]["take_photo"] = False
-                    return_path[-1]["take_photo"] = False
-                    waypoints.extend(return_path)
-
-                    # Forward path with +45 degree angle
-                    forward_path = [
-                        {
-                            "coordinates": wp["coordinates"],
-                            "angle": str(angle * -1),
-                            "take_photo": True,
-                            "gimbal_angle": "45",
-                        }
-                        for wp in reversed(x_row_waypoints)
-                    ]
-
-                    # do not take picture in first and last point
-                    forward_path[0]["take_photo"] = False
-                    forward_path[-1]["take_photo"] = False
-                    waypoints.extend(forward_path)
-
-        else:
-            for x_row_waypoint in x_row_waypoints:
-                x_row_waypoint["take_photo"] = False
-
-            if x_row_waypoints:
-                if row_count % 2 == 0:
-                    # add first point
-                    waypoints.append(x_row_waypoints[0])
-
-                    # add second point too, if there are more than 1 points
-                    # 2 points in each end are needed to straighten the flights
-                    if len(x_row_waypoints) > 1:
-                        waypoints.append(x_row_waypoints[1])
-
-                    # If there are more than 2 points, add last 2 points
-                    if len(x_row_waypoints) > 2:
-                        waypoints.append(x_row_waypoints[-2])
-                        waypoints.append(x_row_waypoints[-1])
-
-                    if generate_3d:
-                        ## Return path with -45 degree angle for the relevant points
-                        # add last 2 points of the row in reverse order
-                        if len(x_row_waypoints) > 2:
-                            waypoints.append(
-                                {
-                                    "coordinates": x_row_waypoints[-1]["coordinates"],
-                                    "angle": str(angle * -1),
-                                    "take_photo": False,
-                                    "gimbal_angle": "-45",
-                                }
-                            )
-                            waypoints.append(
-                                {
-                                    "coordinates": x_row_waypoints[-2]["coordinates"],
-                                    "angle": str(angle * -1),
-                                    "take_photo": False,
-                                    "gimbal_angle": "-45",
-                                }
-                            )
-
-                        # add the first point for -45 angle in reverse order
-                        if len(x_row_waypoints) > 1:
-                            waypoints.append(
-                                {
-                                    "coordinates": x_row_waypoints[1]["coordinates"],
-                                    "angle": str(angle * -1),
-                                    "take_photo": False,
-                                    "gimbal_angle": "-45",
-                                }
-                            )
-
-                        # add the first point for -45 angle
-                        waypoints.append(
-                            {
-                                "coordinates": x_row_waypoints[0]["coordinates"],
-                                "angle": str(angle * -1),
-                                "take_photo": False,
-                                "gimbal_angle": "-45",
-                            }
-                        )
-
-                        # TODO: fix the angle, it might not just be 45 degree.
-                        # add the 45 lateral
-                        waypoints.append(
-                            {
-                                "coordinates": x_row_waypoints[0]["coordinates"],
-                                "angle": str(angle),
-                                "take_photo": False,
-                                "gimbal_angle": "45",
-                            }
-                        )
-
-                        # Forward path with +45 degree angle for the relevant points
-                        if len(x_row_waypoints) > 1:
-                            waypoints.append(
-                                {
-                                    "coordinates": x_row_waypoints[1]["coordinates"],
-                                    "angle": str(angle),
-                                    "take_photo": False,
-                                    "gimbal_angle": "-45",
-                                }
-                            )
-
-                        # If there are more than 2 points, add last 2 points
-                        if len(x_row_waypoints) > 2:
-                            waypoints.append(
-                                {
-                                    "coordinates": x_row_waypoints[-2]["coordinates"],
-                                    "angle": str(angle),
-                                    "take_photo": False,
-                                    "gimbal_angle": "-45",
-                                }
-                            )
-                            waypoints.append(
-                                {
-                                    "coordinates": x_row_waypoints[-1]["coordinates"],
-                                    "angle": str(angle),
-                                    "take_photo": False,
-                                    "gimbal_angle": "-45",
-                                }
-                            )
-
-                else:
-                    if len(x_row_waypoints) > 2:
-                        waypoints.append(x_row_waypoints[-1])
-                        waypoints.append(x_row_waypoints[-2])
-                    if len(x_row_waypoints) > 1:
-                        waypoints.append(x_row_waypoints[1])
-                    waypoints.append(x_row_waypoints[0])
-
-                    # REFACTOR - This needs refactoring
-                    if generate_3d:
-                        # Point Index 0
-                        waypoints.append(
-                            {
-                                "coordinates": x_row_waypoints[0]["coordinates"],
-                                "angle": str(angle * -1),
-                                "take_photo": False,
-                                "gimbal_angle": "-45",
-                            }
-                        )
-
-                        # Return path with -45 degree angle for the relevant points
-                        if len(x_row_waypoints) > 1:
-                            waypoints.append(
-                                {
-                                    "coordinates": x_row_waypoints[1]["coordinates"],
-                                    "angle": str(angle * -1),
-                                    "take_photo": False,
-                                    "gimbal_angle": "-45",
-                                }
-                            )
-
-                        # Forward path with +45 degree angle for the relevant points
-                        if len(x_row_waypoints) > 2:
-                            waypoints.append(
-                                {
-                                    "coordinates": x_row_waypoints[-2]["coordinates"],
-                                    "angle": str(angle * -1),
-                                    "take_photo": False,
-                                    "gimbal_angle": "-45",
-                                }
-                            )
-                            waypoints.append(
-                                {
-                                    "coordinates": x_row_waypoints[-1]["coordinates"],
-                                    "angle": str(angle * -1),
-                                    "take_photo": False,
-                                    "gimbal_angle": "-45",
-                                }
-                            )
-
-                        ## FORWARD PATH
-                        # Last Point Index
-                        waypoints.append(
-                            {
-                                "coordinates": x_row_waypoints[-1]["coordinates"],
-                                "angle": str(angle),
-                                "take_photo": False,
-                                "gimbal_angle": "45",
-                            }
-                        )
-                        # Forward path with +45 degree angle for the relevant points
-                        if len(x_row_waypoints) > 1:
-                            waypoints.append(
-                                {
-                                    "coordinates": x_row_waypoints[-2]["coordinates"],
-                                    "angle": str(angle),
-                                    "take_photo": False,
-                                    "gimbal_angle": "45",
-                                }
-                            )
-                        if len(x_row_waypoints) > 2:
-                            waypoints.append(
-                                {
-                                    "coordinates": x_row_waypoints[1]["coordinates"],
-                                    "angle": str(angle),
-                                    "take_photo": False,
-                                    "gimbal_angle": "45",
-                                }
-                            )
-                            waypoints.append(
-                                {
-                                    "coordinates": x_row_waypoints[0]["coordinates"],
-                                    "angle": str(angle),
-                                    "take_photo": False,
-                                    "gimbal_angle": "45",
-                                }
-                            )
-
-        row_count += 1
-        angle = angle * -1
-
-    # We have gimbal angle 45. for the lateral 45 ( We change them to Pitch -90 and lateral -45) in the waypoints file
-    waypoints.append(
+    Returns:
+        list[dict]: A list of dictionaries representing the additional 3D waypoints.
+    """
+    # Return path with -45 degree angle
+    return_path = [
         {
-            "coordinates": (centroid.x, centroid.y),
-            "angle": "0",
-            "take_photo": False,
-            "gimbal_angle": "-90",
+            "coordinates": wp,
+            "angle": str(-angle),
+            "take_photo": True,
+            "gimbal_angle": "-45"
+            if row_index % 2 == 0
+            else "45",  # Alternate angles based on row index
         }
-    )
+        for wp in reversed(row_points)
+    ]
+    return_path[0]["take_photo"] = False
+    return_path[-1]["take_photo"] = False
 
-    return waypoints
+    # Forward path with 45 degree angle
+    forward_path = [
+        {
+            "coordinates": wp,
+            "angle": str(angle),
+            "take_photo": True,
+            "gimbal_angle": "45"
+            if row_index % 2 == 0
+            else "-45",  # Alternate angles based on row index
+        }
+        for wp in row_points
+    ]
+    forward_path[0]["take_photo"] = False
+    forward_path[-1]["take_photo"] = False
+
+    return return_path + forward_path
+
+
+def exclude_no_fly_zones(points: list[dict], no_fly_zones: list[Polygon]) -> list[dict]:
+    """
+    Exclude waypoints that fall within defined no-fly zones.
+
+    Parameters:
+        points (list[dict]): A list of waypoints.
+        no_fly_zones (list[Polygon]): A list of Polygons representing no-fly zones.
+
+        Returns:
+        list[dict]: A list of waypoints excluding those within no-fly zones.
+    """
+    return [
+        point
+        for point in points
+        if not any(nfz.contains(point["coordinates"]) for nfz in no_fly_zones)
+    ]
 
 
 def create_waypoint(
-    project_area,
-    agl,
-    gsd,
-    forward_overlap,
-    side_overlap,
-    generate_each_points=False,
-    generate_3d=False,
-):
+    project_area: dict,
+    agl: float,
+    gsd: float,
+    forward_overlap: float,
+    side_overlap: float,
+    rotation_angle: float = 0.0,
+    generate_each_points: bool = False,
+    generate_3d: bool = False,
+    no_fly_zones: dict = None,
+) -> str:
     """
     Create waypoints for a given project area based on specified parameters.
 
     Parameters:
         project_area (dict): GeoJSON dictionary representing the project area.
         agl (float): Altitude above ground level.
+        gsd (float): Ground Sampling Distance.
         forward_overlap (float): Forward overlap percentage for the waypoints.
         side_overlap (float): Side overlap percentage for the waypoints.
-        generate_each_points (bool): Flag to determine if each point should be generated.
+        rotation_angle (float): The rotation angle for the flight grid in degrees.
+        generate_each_points (bool): Flag to determine if each point should be generated densely.
         generate_3d (bool): Flag to determine if 3D waypoints should be generated.
-
+        no_fly_zones (dict, optional): GeoJSON dictionary representing no-fly zones.
     Returns:
         geojson: waypoints generated within the project area in the geojson format
 
@@ -390,51 +245,62 @@ def create_waypoint(
     }
 
     """
-    parameters = cp.calculate_parameters(forward_overlap, side_overlap, agl, gsd)
-
+    parameters = cp(forward_overlap, side_overlap, agl, gsd)
     side_spacing = parameters["side_spacing"]
     forward_spacing = parameters["forward_spacing"]
 
-    # transform to 3857
-    polygon = Polygon(project_area["features"][0]["geometry"]["coordinates"][0])
+    polygon = shape(project_area["features"][0]["geometry"])
 
-    # Define the coordinate systems
     wgs84 = pyproj.CRS("EPSG:4326")
     web_mercator = pyproj.CRS("EPSG:3857")
 
-    # Define a transformer to convert from WGS 84 to Web Mercator
     transformer_to_3857 = pyproj.Transformer.from_crs(
         wgs84, web_mercator, always_xy=True
-    )
+    ).transform
     transformer_to_4326 = pyproj.Transformer.from_crs(
         web_mercator, wgs84, always_xy=True
+    ).transform
+
+    polygon_3857 = transform(transformer_to_3857, polygon)
+
+    # Calculate the centroid for centering the grid
+    centroid = polygon_3857.centroid
+
+    # Rotate the polygon to the specified angle around the centroid
+    rotated_polygon = rotate(
+        polygon_3857, rotation_angle, origin=centroid, use_radians=False
     )
 
-    polygon_3857 = Polygon(
-        [
-            transformer_to_3857.transform(lon, lat)
-            for lon, lat in polygon.exterior.coords
+    # Generate waypoints in the rotated AOI
+    grid = generate_grid_in_aoi(rotated_polygon, forward_spacing, side_spacing)
+
+    # Create path and rotate back to the original angle
+    waypoints = create_path(grid, forward_spacing, generate_3d=generate_3d)
+    waypoints = [
+        {
+            "coordinates": rotate(
+                wp["coordinates"],
+                -rotation_angle,
+                origin=centroid,
+                use_radians=False,
+            ),
+            "angle": wp["angle"],
+            "take_photo": wp["take_photo"],
+            "gimbal_angle": wp["gimbal_angle"],
+        }
+        for wp in waypoints
+    ]
+
+    if no_fly_zones:
+        no_fly_polygons = [
+            transform(transformer_to_3857, shape(zone["geometry"]))
+            for zone in no_fly_zones["features"]
         ]
-    )
-
-    distance_between_lines_x = forward_spacing
-    distance_between_lines_y = side_spacing
-
-    waypoints = generate_waypoints_within_polygon(
-        polygon_3857,
-        distance_between_lines_x,
-        distance_between_lines_y,
-        generate_each_points,
-        generate_3d,
-    )
-
-    log.info("count of waypoints = %d", len(waypoints))
+        waypoints = exclude_no_fly_zones(waypoints, no_fly_polygons)
 
     features = []
     for index, wp in enumerate(waypoints):
-        coordinates_4326 = transformer_to_4326.transform(
-            wp["coordinates"][0], wp["coordinates"][1]
-        )
+        coordinates_4326 = transformer_to_4326(wp["coordinates"].x, wp["coordinates"].y)
         feature = geojson.Feature(
             geometry=geojson.Point(coordinates_4326),
             properties={
@@ -447,13 +313,14 @@ def create_waypoint(
         features.append(feature)
 
     feature_collection = geojson.FeatureCollection(features)
-
-    final_data = geojson.dumps(feature_collection, indent=2)
-
-    return final_data
+    return geojson.dumps(feature_collection, indent=2)
 
 
 def main():
+    """
+    The main entry point of the script. Parses command-line arguments and
+    generates waypoints for a drone mission based on the provided parameters.
+    """
     parser = argparse.ArgumentParser(
         description="Generate waypoints for drone missions."
     )
@@ -482,19 +349,25 @@ def main():
         help="The side overlap in percentage.",
     )
     parser.add_argument(
-        "--generate_each_points",
-        action="store_true",
-        help="Do you want waypoints or waylines.",
+        "--rotation_angle",
+        type=float,
+        default=0.0,
+        help="The rotation angle for the flight grid in degrees.",
     )
     parser.add_argument(
-        "--generate_3d", action="store_true", help="Do you want to generate 3D Imagery"
+        "--generate_each_points", action="store_true", help="Generate dense waypoints."
     )
-
+    parser.add_argument(
+        "--generate_3d", action="store_true", help="Generate 3D imagery."
+    )
+    parser.add_argument(
+        "--no_fly_zones", type=str, help="GeoJSON file containing no-fly zones."
+    )
     parser.add_argument(
         "--output_file_path",
         type=str,
         required=True,
-        help="The output file geojson file path for the waypoints file.",
+        help="The output GeoJSON file path for the waypoints.",
     )
 
     args = parser.parse_args()
@@ -502,16 +375,23 @@ def main():
     with open(args.project_geojson_polygon, "r") as f:
         boundary = geojson.load(f)
 
+    no_fly_zones = None
+    if args.no_fly_zones:
+        with open(args.no_fly_zones, "r") as f:
+            no_fly_zones = geojson.load(f)
+
     coordinates = create_waypoint(
         boundary,
         args.altitude_above_ground_level,
+        None,  # GSD can be None if you calculate based on altitude
         args.forward_overlap,
         args.side_overlap,
+        args.rotation_angle,
         args.generate_each_points,
         args.generate_3d,
+        no_fly_zones,
     )
 
-    # write into geojson file
     with open(args.output_file_path, "w") as f:
         f.write(coordinates)
 
@@ -520,5 +400,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# python3 waypoints.py  --forward_overlap 80 --side_overlap 75 --project_geojson_polygon '/home/niraj/NAXA/HOT/above_naxa_0_5_sq_km.geojson'  --altitude_above_ground_level 100 --output_file_path /home/niraj/NAXA/HOT/drone-flightplan/drone_flightplan/waypoints_2.geojson
