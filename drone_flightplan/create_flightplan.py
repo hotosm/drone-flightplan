@@ -48,8 +48,8 @@ def create_flightplan(
         gsd,
         forward_overlap,
         side_overlap,
-        generate_each_points,
         rotation_angle,
+        generate_each_points
     )
 
     # Add elevation data to the waypoints
