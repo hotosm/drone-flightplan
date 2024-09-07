@@ -2,7 +2,7 @@ import logging
 import argparse
 import pyproj
 import geojson
-from shapely.geometry import Point, shape, Polygon
+from shapely.geometry import Point, shape, Polygon, LineString
 from shapely.affinity import rotate
 from shapely.ops import transform
 from drone_flightplan.calculate_parameters import calculate_parameters as cp
@@ -184,7 +184,7 @@ def exclude_no_fly_zones(points: list[dict], no_fly_zones: list[Polygon]) -> lis
         points (list[dict]): A list of waypoints.
         no_fly_zones (list[Polygon]): A list of Polygons representing no-fly zones.
 
-        Returns:
+    Returns:
         list[dict]: A list of waypoints excluding those within no-fly zones.
     """
     return [
@@ -215,7 +215,7 @@ def create_waypoint(
         forward_overlap (float): Forward overlap percentage for the waypoints.
         side_overlap (float): Side overlap percentage for the waypoints.
         rotation_angle (float): The rotation angle for the flight grid in degrees.
-        generate_each_points (bool): Flag to determine if each point should be generated densely.
+        generate_each_points (bool): Flag True to generate individual waypoints, False for waylines.
         generate_3d (bool): Flag to determine if 3D waypoints should be generated.
         no_fly_zones (dict, optional): GeoJSON dictionary representing no-fly zones.
     Returns:
@@ -271,26 +271,34 @@ def create_waypoint(
         polygon_3857, rotation_angle, origin=centroid, use_radians=False
     )
 
-    # Generate waypoints in the rotated AOI
+    # Generate grid within the rotated AOI
     grid = generate_grid_in_aoi(rotated_polygon, forward_spacing, side_spacing)
 
-    # Create path and rotate back to the original angle
-    waypoints = create_path(grid, forward_spacing, generate_3d=generate_3d)
-    waypoints = [
+    # Create path (either waypoints or waylines) and rotate back to original angle
+    path = create_path(grid, forward_spacing, generate_3d=generate_3d)
+
+    path = [
         {
             "coordinates": rotate(
-                wp["coordinates"],
+                point["coordinates"],
                 -rotation_angle,
                 origin=centroid,
                 use_radians=False,
             ),
-            "angle": wp["angle"],
-            "take_photo": wp["take_photo"],
-            "gimbal_angle": wp["gimbal_angle"],
+            "angle": point["angle"],
+            "take_photo": point["take_photo"],
+            "gimbal_angle": point["gimbal_angle"],
         }
-        for wp in waypoints
+        for point in path
     ]
 
+    # If generating waylines create a LineString, otherwise keep as waypoints
+    if not generate_each_points:
+        waypoints = [{"coordinates": LineString([p["coordinates"] for p in path])}]
+    else:
+        waypoints = path
+
+    # If no-fly zones are provided, exclude points that fall inside no-fly zones
     if no_fly_zones:
         no_fly_polygons = [
             transform(transformer_to_3857, shape(zone["geometry"]))
@@ -298,20 +306,34 @@ def create_waypoint(
         ]
         waypoints = exclude_no_fly_zones(waypoints, no_fly_polygons)
 
+    # Generate GeoJSON features
     features = []
     for index, wp in enumerate(waypoints):
-        coordinates_4326 = transformer_to_4326(wp["coordinates"].x, wp["coordinates"].y)
-        feature = geojson.Feature(
-            geometry=geojson.Point(coordinates_4326),
-            properties={
-                "index": index,
-                "heading": wp["angle"],
-                "take_photo": wp["take_photo"],
-                "gimbal_angle": wp["gimbal_angle"],
-            },
-        )
+        if generate_each_points:
+            # For individual waypoints
+            coordinates_4326 = transformer_to_4326(
+                wp["coordinates"].x, wp["coordinates"].y
+            )
+            feature = geojson.Feature(
+                geometry=geojson.Point(coordinates_4326),
+                properties={
+                    "index": index,
+                    "heading": wp["angle"],
+                    "take_photo": wp["take_photo"],
+                    "gimbal_angle": wp["gimbal_angle"],
+                },
+            )
+        else:
+            # For waylines (LineString)
+            coordinates_4326 = [
+                transformer_to_4326(point[0], point[1])
+                for point in wp["coordinates"].coords
+            ]
+            feature = geojson.Feature(
+                geometry=geojson.LineString(coordinates_4326),
+                properties={"index": index},
+            )
         features.append(feature)
-
     feature_collection = geojson.FeatureCollection(features)
     return geojson.dumps(feature_collection, indent=2)
 
@@ -355,7 +377,10 @@ def main():
         help="The rotation angle for the flight grid in degrees.",
     )
     parser.add_argument(
-        "--generate_each_points", action="store_true", help="Generate dense waypoints."
+        "--generate_each_points",
+        required=True,
+        type=lambda x: (str(x).lower() == "true"),
+        help="Generate waypoints if True, waylines if False. (Accepts 'True' or 'False')",
     )
     parser.add_argument(
         "--generate_3d", action="store_true", help="Generate 3D imagery."
