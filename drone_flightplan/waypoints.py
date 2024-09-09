@@ -36,13 +36,6 @@ def generate_grid_in_aoi(
             point = Point(x, y)
             if aoi_polygon.contains(point):
                 points.append(point)
-            # Add only unique points that are near the edges of the polygon
-            offset_point = Point(x + x_spacing, y)
-            if (
-                aoi_polygon.contains(offset_point)
-                or aoi_polygon.distance(offset_point) <= x_spacing / 3
-            ):
-                points.append(offset_point)
 
     return points
 
