@@ -316,30 +316,18 @@ def create_waypoint(
     # Generate GeoJSON features
     features = []
     for index, wp in enumerate(waypoints):
-        if generate_each_points:
-            # For individual waypoints
-            coordinates_4326 = transformer_to_4326(
-                wp["coordinates"].x, wp["coordinates"].y
-            )
-            feature = geojson.Feature(
-                geometry=geojson.Point(coordinates_4326),
-                properties={
-                    "index": index,
-                    "heading": wp["angle"],
-                    "take_photo": wp["take_photo"],
-                    "gimbal_angle": wp["gimbal_angle"],
-                },
-            )
-        else:
-            # For waylines (LineString)
-            coordinates_4326 = [
-                transformer_to_4326(point[0], point[1])
-                for point in wp["coordinates"].coords
-            ]
-            feature = geojson.Feature(
-                geometry=geojson.LineString(coordinates_4326),
-                properties={"index": index},
-            )
+        coordinates_4326 = transformer_to_4326(
+            wp["coordinates"].x, wp["coordinates"].y
+        )
+        feature = geojson.Feature(
+            geometry=geojson.Point(coordinates_4326),
+            properties={
+                "index": index,
+                "heading": wp["angle"],
+                "take_photo": wp["take_photo"],
+                "gimbal_angle": wp["gimbal_angle"],
+            },
+        )
         features.append(feature)
     feature_collection = geojson.FeatureCollection(features)
     return geojson.dumps(feature_collection, indent=2)
