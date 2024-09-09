@@ -187,6 +187,23 @@ def exclude_no_fly_zones(points: list[dict], no_fly_zones: list[Polygon]) -> lis
     ]
 
 
+def process_waylines(input_data):
+    processed_data = []
+    count = 0
+
+    for i in range(len(input_data)):
+        if i == 0 or input_data[i]['angle'] == input_data[i - 1]['angle']:
+            count += 1
+        else:
+            count = 1  # Reset count when a new angle is encountered
+
+        # Add only the first two occurrences of each angle
+        if count <= 2:
+            processed_data.append(input_data[i])
+
+    return processed_data
+
+
 def create_waypoint(
     project_area: dict,
     agl: float,
@@ -285,11 +302,8 @@ def create_waypoint(
         for point in path
     ]
 
-    # If generating waylines create a LineString, otherwise keep as waypoints
-    if not generate_each_points:
-        waypoints = [{"coordinates": LineString([p["coordinates"] for p in path])}]
-    else:
-        waypoints = path
+    # If generating waylines, just add two points at each end
+    waypoints = process_waylines(path) if not generate_each_points else path
 
     # If no-fly zones are provided, exclude points that fall inside no-fly zones
     if no_fly_zones:
