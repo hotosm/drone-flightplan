@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## 0.3.1rc3 (2024-09-10)
+
+### Feat
+
+- polygon edge coverage by adding extra waypoints
+- add extra start and end waypoints for each row in aoi
+
+### Refactor
+
+- add type hinting, docstrings, and correct unit measurements
+
 ## 0.3.1rc2 (2024-08-29)
 
 ## 0.3.1rc1 (2024-08-20)
