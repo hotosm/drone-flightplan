@@ -187,19 +187,26 @@ def exclude_no_fly_zones(points: list[dict], no_fly_zones: list[Polygon]) -> lis
     ]
 
 
-def process_waylines(input_data):
+def remove_middle_points(data):
     processed_data = []
-    count = 0
+    i = 0
 
-    for i in range(len(input_data)):
-        if i == 0 or input_data[i]['angle'] == input_data[i - 1]['angle']:
-            count += 1
+    while i < len(data):
+        current_angle = data[i]['angle']
+        segment_start = i
+
+        # Find the end of the segment with the same angle
+        while i < len(data) and data[i]['angle'] == current_angle:
+            i += 1
+
+        segment_end = i
+
+        # If the segment has more than 4 points, keep only the first 2 and the last 2
+        if segment_end - segment_start > 4:
+            processed_data.extend(data[segment_start:segment_start+2])
+            processed_data.extend(data[segment_end-2:segment_end])
         else:
-            count = 1  # Reset count when a new angle is encountered
-
-        # Add only the first two occurrences of each angle
-        if count <= 2:
-            processed_data.append(input_data[i])
+            processed_data.extend(data[segment_start:segment_end])
 
     return processed_data
 
@@ -303,7 +310,7 @@ def create_waypoint(
     ]
 
     # If generating waylines, just add two points at each end
-    waypoints = process_waylines(path) if not generate_each_points else path
+    waypoints = remove_middle_points(path) if not generate_each_points else path
 
     # If no-fly zones are provided, exclude points that fall inside no-fly zones
     if no_fly_zones:
