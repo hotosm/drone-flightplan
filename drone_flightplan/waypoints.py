@@ -2,10 +2,11 @@ import logging
 import argparse
 import pyproj
 import geojson
-from shapely.geometry import Point, shape, Polygon, LineString
+from shapely.geometry import Point, shape, Polygon
 from shapely.affinity import rotate
 from shapely.ops import transform
 from drone_flightplan.calculate_parameters import calculate_parameters as cp
+
 
 log = logging.getLogger(__name__)
 
@@ -192,19 +193,19 @@ def remove_middle_points(data):
     i = 0
 
     while i < len(data):
-        current_angle = data[i]['angle']
+        current_angle = data[i]["angle"]
         segment_start = i
 
         # Find the end of the segment with the same angle
-        while i < len(data) and data[i]['angle'] == current_angle:
+        while i < len(data) and data[i]["angle"] == current_angle:
             i += 1
 
         segment_end = i
 
         # If the segment has more than 4 points, keep only the first 2 and the last 2
         if segment_end - segment_start > 4:
-            processed_data.extend(data[segment_start:segment_start+2])
-            processed_data.extend(data[segment_end-2:segment_end])
+            processed_data.extend(data[segment_start : segment_start + 2])
+            processed_data.extend(data[segment_end - 2 : segment_end])
         else:
             processed_data.extend(data[segment_start:segment_end])
 
@@ -221,6 +222,7 @@ def create_waypoint(
     generate_each_points: bool = False,
     generate_3d: bool = False,
     no_fly_zones: dict = None,
+    take_off_point: list[float] = None,
 ) -> str:
     """
     Create waypoints for a given project area based on specified parameters.
@@ -292,22 +294,38 @@ def create_waypoint(
     grid = generate_grid_in_aoi(rotated_polygon, forward_spacing, side_spacing)
 
     # Create path (either waypoints or waylines) and rotate back to original angle
-    path = create_path(grid, forward_spacing, generate_3d=generate_3d)
+    initial_path = create_path(grid, forward_spacing, generate_3d=generate_3d)
 
-    path = [
-        {
-            "coordinates": rotate(
-                point["coordinates"],
-                -rotation_angle,
-                origin=centroid,
-                use_radians=False,
-            ),
-            "angle": point["angle"],
-            "take_photo": point["take_photo"],
-            "gimbal_angle": point["gimbal_angle"],
+    # Path initialization
+    path = []
+
+    # Conditionally add takeoff point if available
+    if take_off_point:
+        initial_point = {
+            "coordinates": Point(transformer_to_3857(*take_off_point)),
+            "take_photo": False,
+            "angle": 0,
+            "gimbal_angle": "-90",
         }
-        for point in path
-    ]
+        path.append(initial_point)
+
+    # Add the rest of the points with rotation
+    path.extend(
+        [
+            {
+                "coordinates": rotate(
+                    point["coordinates"],
+                    -rotation_angle,
+                    origin=centroid,
+                    use_radians=False,
+                ),
+                "angle": point["angle"],
+                "take_photo": point["take_photo"],
+                "gimbal_angle": point["gimbal_angle"],
+            }
+            for point in initial_path
+        ]
+    )
 
     # If generating waylines, just add two points at each end
     waypoints = remove_middle_points(path) if not generate_each_points else path
@@ -323,9 +341,7 @@ def create_waypoint(
     # Generate GeoJSON features
     features = []
     for index, wp in enumerate(waypoints):
-        coordinates_4326 = transformer_to_4326(
-            wp["coordinates"].x, wp["coordinates"].y
-        )
+        coordinates_4326 = transformer_to_4326(wp["coordinates"].x, wp["coordinates"].y)
         feature = geojson.Feature(
             geometry=geojson.Point(coordinates_4326),
             properties={
@@ -338,6 +354,20 @@ def create_waypoint(
         features.append(feature)
     feature_collection = geojson.FeatureCollection(features)
     return geojson.dumps(feature_collection, indent=2)
+
+
+def validate_coordinates(value):
+    try:
+        lon, lat = map(float, value.split(","))
+        if not (-180 <= lon <= 180 and -90 <= lat <= 90):
+            raise argparse.ArgumentTypeError(
+                "Coordinates must be in the format 'longitude,latitude' and within valid ranges."
+            )
+        return [lon, lat]
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            "Invalid format. Coordinates must be in 'longitude,latitude' format."
+        )
 
 
 def main():
@@ -380,9 +410,8 @@ def main():
     )
     parser.add_argument(
         "--generate_each_points",
-        required=True,
-        type=lambda x: (str(x).lower() == "true"),
-        help="Generate waypoints if True, waylines if False. (Accepts 'True' or 'False')",
+        action="store_true",
+        help="Do you want waypoints or waylines.",
     )
     parser.add_argument(
         "--generate_3d", action="store_true", help="Generate 3D imagery."
@@ -396,7 +425,12 @@ def main():
         required=True,
         help="The output GeoJSON file path for the waypoints.",
     )
-
+    parser.add_argument(
+        "--take_off_point",
+        required=True,
+        type=validate_coordinates,
+        help="Take off Point Coordinates in 'longitude,latitude' format (e.g., 82.52,28.29).",
+    )
     args = parser.parse_args()
 
     with open(args.project_geojson_polygon, "r") as f:
@@ -417,6 +451,7 @@ def main():
         args.generate_each_points,
         args.generate_3d,
         no_fly_zones,
+        args.take_off_point,
     )
 
     with open(args.output_file_path, "w") as f:
