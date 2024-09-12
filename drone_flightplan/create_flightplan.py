@@ -24,6 +24,7 @@ def create_flightplan(
     outfile: str = None,
     generate_each_points: bool = False,
     rotation_angle: float = 0.0,
+    take_off_point: list[float] = None,
 ):
     """
     Arguments:
@@ -49,7 +50,8 @@ def create_flightplan(
         forward_overlap,
         side_overlap,
         rotation_angle,
-        generate_each_points
+        generate_each_points,
+        take_off_point=take_off_point,
     )
 
     # Add elevation data to the waypoints
@@ -68,6 +70,20 @@ def create_flightplan(
     outpath = create_wpml(placemarks, outfile)
     log.info(f"Flight plan generated in the path {outpath}")
     return outpath
+
+
+def validate_coordinates(value):
+    try:
+        lon, lat = map(float, value.split(","))
+        if not (-180 <= lon <= 180 and -90 <= lat <= 90):
+            raise argparse.ArgumentTypeError(
+                "Coordinates must be in the format 'longitude,latitude' and within valid ranges."
+            )
+        return [lon, lat]
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            "Invalid format. Coordinates must be in 'longitude,latitude' format."
+        )
 
 
 def main():
@@ -127,6 +143,12 @@ def main():
         help="The rotation angle for the flight grid in degrees.",
     )
 
+    parser.add_argument(
+        "--take_off_point",
+        required=True,
+        type=validate_coordinates,
+        help="Take off Point Coordinates in 'longitude,latitude' format (e.g., 82.52,28.29).",
+    )
     args = parser.parse_args()
 
     with open(args.project_geojson, "r") as f:
@@ -143,6 +165,7 @@ def main():
         args.outfile,
         args.generate_each_points,
         args.rotation_angle,
+        args.take_off_point,
     )
 
 
