@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.3.1rc4 (2024-09-12)
+
+### Feat
+
+- Add support for generating waylines when generate_each_points is False
+
 ## 0.3.1rc3 (2024-09-10)
 
 ### Feat
