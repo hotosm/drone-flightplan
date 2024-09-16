@@ -209,6 +209,10 @@ def remove_middle_points(data):
         else:
             processed_data.extend(data[segment_start:segment_end])
 
+    # Make take_photo = False for all the points
+    for point in processed_data:
+        point["take_photo"] = False
+
     return processed_data
 
 
