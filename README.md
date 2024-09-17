@@ -25,27 +25,76 @@ To install the package, use pip
 ```pip install drone-flightplan```
 
 ### Usage
+
+#### `create_waypoint`
+
 To get the drone waypoints for a given Geojson Polygon AOI, we can do this:
 ```
-from drone_flightplan.waypoints import create_waypoint
+from drone_flightplan import create_waypoint
 
 create_waypoint(
-        polygon_geojson,
-        altitude_above_ground_level,
-        forward_overlap,
-        side_overlap,
-        generate_each_points,
-        generate_3d,
-    )
+    project_area,
+    agl,
+    gsd,
+    forward_overlap,
+    side_overlap,
+    rotation_angle=0.0,
+    generate_each_points=False,
+    generate_3d=False,
+    no_fly_zones=None,
+    take_off_point=None,
+)
 
 Parameters:
-  - polygon_geojson = Geojson Polygon AOI
-  - altitude_above_ground_level = The height at which you want to fly the drone from ground level
-  - forward_overlap = Forward Overlap you want in the imageries
-  - side_overlap = Desired Side Overlap you want in the imageries
-  - generate_each_points (bool) : True if you want waypoints and False if you want waylines
-  - generate_3d : True if you want to generate 3d imageries. False if you just want 2d imageries. 3d imageries will take photos ad 3 different angles (-90, -45 and lateral 45 degree angle)
+  - project_area (dict): A GeoJSON dictionary representing the project area (Polygon AOI).
+  - agl (float): Altitude above ground level (the height at which the drone will fly).
+  - gsd (float): Ground Sampling Distance (resolution of the images captured).
+  - forward_overlap (float): Desired forward overlap percentage for the images in the flight plan.
+  - side_overlap (float): Desired side overlap percentage for the images in the flight plan.
+  - rotation_angle (float, optional): The rotation angle for the flight grid in degrees (default is 0.0).
+  - generate_each_points (bool, optional): True to generate individual waypoints, False to generate waylines 
+    connecting waypoints for a continuous flight path.
+  - generate_3d (bool, optional): True to capture 3D images at −90°, −45°, and 45° lateral angles, False to capture only
+    2D images (default is False).
+  - no_fly_zones (dict, optional): A GeoJSON dictionary representing no-fly zones (areas to avoid).
+  - take_off_point (list[float], optional): The GPS coordinates of the take-off point [longitude, latitude] for the flight.
 
+```
+
+#### `create_flightplan`
+
+This is the core function responsible for generating a complete flight plan for a specified area of interest (AOI).
+
+```
+from drone_flightplan import create_flightplan
+
+create_flightplan(
+    aoi,
+    forward_overlap,
+    side_overlap,
+    agl,
+    gsd=None,
+    image_interval=2,
+    dem=None,
+    outfile=None,
+    generate_each_points=False,
+    rotation_angle=0.0,
+    take_off_point=None,
+)
+
+Parameters:
+  - aoi: The area of interest in GeoJSON format.
+  - forward_overlap (float): Desired forward overlap percentage for the images.
+  - side_overlap (float): Desired side overlap percentage for the images.
+  - agl (float): Altitude above ground level (in meters) for drone flight.
+  - gsd (float, optional): Ground sampling distance in cm/px. If not provided, it will be calculated based on the altitude.
+  - image_interval (int, optional): Time interval (in seconds) between two consecutive image captures. 
+  - dem (str, optional): Path to the Digital Elevation Model (DEM) file to add terrain elevation data to the flight plan.
+  - outfile (str, optional): The output file path where the resulting flight plan will be saved. If not provided, 
+    the flight plan is returned as a string.
+  - generate_each_points (bool, optional): True to generate individual waypoints for flight, False to generate waylines.
+  - rotation_angle (float, optional): The rotation angle (in degrees) for the flight grid. Default is 0.0.
+  - take_off_point (list[float], optional): A list of GPS coordinates [longitude, latitude] for the takeoff point. 
 ```
 
 ### Waypoint File
@@ -55,28 +104,3 @@ WPML route files all end with a ".kmz" suffix and are essentially archive files 
 ![image](https://github.com/user-attachments/assets/bb7a6f95-29f8-40e0-972c-92a974aa0bf0)
 
 You can find more on this from the documentation [here](https://github.com/dji-sdk/Cloud-API-Doc/blob/master/docs/en/60.api-reference/00.dji-wpml/10.overview.md).
-
-You can get the waypoint file following this steps:
-```
-from drone_flightplan import flightplan
-
-flightplan.generate_flightplan(
-  project_area,
-  altitude_above_ground_level,
-  forward_overlap,
-  side_overlap,
-  generate_each_points,
-  generate_3d,
-  output_file_path
-)
-
-Parameters:
-  - polygon_geojson = Geojson Polygon AOI
-  - altitude_above_ground_level = The height at which you want to fly the drone from ground level
-  - forward_overlap = Forward Overlap you want in the imageries
-  - side_overlap = Desired Side Overlap you want in the imageries
-  - generate_each_points (bool) : True if you want waypoints and False if you want waylines
-  - generate_3d : True if you want to generate 3d imageries. False if you just want 2d imageries. 3d imageries will take photos ad 3 different angles (-90, -45 and lateral 45 degree angle)
-  - output_file_path: The path where you want your output flightplan
-
-```
