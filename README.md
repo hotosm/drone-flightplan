@@ -33,7 +33,7 @@ pip install drone-flightplan
 
 This module helps in calculating various parameters required for the flight plan, such as:
 
-```python
+```
 calculate_parameters(
     forward_overlap: float,
     side_overlap: float,
@@ -66,7 +66,7 @@ calculate_parameters(
 
 This module creates placemarks for the flight plan, useful for marking key locations:
 
-```python
+```
 from drone_flightplan import create_placemarks
 
 create_placemarks(
@@ -83,7 +83,7 @@ create_placemarks(
 
 This module generates waypoints for a given project area, using parameters such as altitude, GSD, overlap ratios, and the option to avoid no-fly zones. It can also create 3D waypoints:
 
-```python
+```
 from drone_flightplan import create_waypoint
 
 create_waypoint(
@@ -116,7 +116,7 @@ create_waypoint(
 
 This is the core function responsible for generating a complete flight plan for a specified area of interest (AOI):
 
-```python
+```
 from drone_flightplan import create_flightplan
 
 create_flightplan(
@@ -151,7 +151,7 @@ create_flightplan(
 
 This module integrates elevation data from Digital Elevation Models (DEMs) into the flight plan to account for changes in terrain. This ensures more accurate waypoint positioning for varying altitudes:
 
-```python
+```
 from drone_flightplan import add_elevation_from_dem
 
 add_elevation_from_dem(raster_file, points, outfile)
@@ -166,7 +166,7 @@ add_elevation_from_dem(raster_file, points, outfile)
 
 This module is responsible for creating WPML files (Waypoint Markup Language), which are often used for visualizing waypoints and flight paths in different tools or simulators:
 
-```python
+```
 from drone_flightplan import create_wpml
 
 create_wpml(
