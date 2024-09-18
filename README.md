@@ -19,6 +19,15 @@
 
 The Drone Flightplan Generator is a Python package designed to automate the creation of flight plans for drones. This tool is essential for users needing efficient and precise aerial surveys, mapping, and imagery collection.
 
+### Waypoint File
+
+DJI drones require waypoint files. WPML route files all end with a ".kmz" suffix and are essentially archive files packed in ZIP format. After decompression of a standard WPML route file, its file structure is as follows:
+
+![image](https://github.com/user-attachments/assets/bb7a6f95-29f8-40e0-972c-92a974aa0bf0)
+
+For more details, check the [DJI Cloud API documentation](https://github.com/dji-sdk/Cloud-API-Doc/blob/master/docs/en/60.api-reference/00.dji-wpml/10.overview.md).
+
+
 ## Installation
 
 To install the package, use pip:
@@ -178,11 +187,3 @@ create_wpml(
 **Parameters:**
 - `placemark_geojson`: The placemark coordinates to be included in the flight plan mission.
 - `output_file_path`: The output file path for the WPML file.
-
-### Waypoint File
-
-DJI drones require waypoint files. WPML route files all end with a ".kmz" suffix and are essentially archive files packed in ZIP format. After decompression of a standard WPML route file, its file structure is as follows:
-
-![image](https://github.com/user-attachments/assets/bb7a6f95-29f8-40e0-972c-92a974aa0bf0)
-
-You can find more information [here](https://github.com/dji-sdk/Cloud-API-Doc/blob/master/docs/en/60.api-reference/00.dji-wpml/10.overview.md).
