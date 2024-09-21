@@ -71,24 +71,12 @@ calculate_parameters(
 - Side spacing = Side photo width - Side overlap distance = 144 - 108 = 36
 - Ground speed = Forward spacing / Image interval = 10
 
-### 2. `create_placemarks`
-
-This module creates placemarks for the flight plan, useful for marking key locations:
-
-```
-from drone_flightplan import create_placemarks
-
-create_placemarks(
-    waypoints_geojson: Union[str, FeatureCollection, dict], 
-    parameters: dict
-)
-```
 
 **Parameters:**
 - `waypoints_geojson`: The waypoint coordinates to be included in the flight plan mission.
 - `parameters`: The drone flight parameters in JSON format.
 
-### 3. `create_waypoint`
+### 2. `create_waypoint`
 
 This module generates waypoints for a given project area, using parameters such as altitude, GSD, overlap ratios, and the option to avoid no-fly zones. It can also create 3D waypoints:
 
@@ -121,7 +109,53 @@ create_waypoint(
 - `no_fly_zones` (dict, optional): A GeoJSON dictionary representing no-fly zones (areas to avoid).
 - `take_off_point` (list[float], optional): The GPS coordinates of the take-off point [longitude, latitude] for the flight.
 
-### 4. `create_flightplan`
+### 3. `add_elevation_from_dem`
+
+This module integrates elevation data from Digital Elevation Models (DEMs) into the flight plan to account for changes in terrain. This ensures more accurate waypoint positioning for varying altitudes:
+
+```
+from drone_flightplan import add_elevation_from_dem
+
+add_elevation_from_dem(raster_file, points, outfile)
+```
+
+**Parameters:**
+- `raster_file`: Path to the DEM GeoTIFF file.
+- `points`: GeoJSON string with point coordinates.
+- `outfile`: Path for saving the output with added elevation.
+
+### 4. `create_placemarks`
+
+This module creates placemarks for the flight plan, useful for marking key locations:
+
+```
+from drone_flightplan import create_placemarks
+
+create_placemarks(
+    waypoints_geojson: Union[str, FeatureCollection, dict], 
+    parameters: dict
+)
+```
+
+
+### 5. `create_wpml`
+
+This module is responsible for creating WPML files (Waypoint Markup Language), which are often used for visualizing waypoints and flight paths in different tools or simulators:
+
+```
+from drone_flightplan import create_wpml
+
+create_wpml(
+    placemark_geojson: Union[str, FeatureCollection, dict],
+    output_file_path: str = "/tmp/",
+)
+```
+
+**Parameters:**
+- `placemark_geojson`: The placemark coordinates to be included in the flight plan mission.
+- `output_file_path`: The output file path for the WPML file.
+
+### 6. `create_flightplan`
 
 This is the core function responsible for generating a complete flight plan for a specified area of interest (AOI):
 
@@ -156,34 +190,5 @@ create_flightplan(
 - `rotation_angle` (float, optional): The rotation angle (in degrees) for the flight grid. Default is 0.0.
 - `take_off_point` (list[float], optional): A list of GPS coordinates [longitude, latitude] for the takeoff point.
 
-### 5. `add_elevation_from_dem`
 
-This module integrates elevation data from Digital Elevation Models (DEMs) into the flight plan to account for changes in terrain. This ensures more accurate waypoint positioning for varying altitudes:
 
-```
-from drone_flightplan import add_elevation_from_dem
-
-add_elevation_from_dem(raster_file, points, outfile)
-```
-
-**Parameters:**
-- `raster_file`: Path to the DEM GeoTIFF file.
-- `points`: GeoJSON string with point coordinates.
-- `outfile`: Path for saving the output with added elevation.
-
-### 6. `create_wpml`
-
-This module is responsible for creating WPML files (Waypoint Markup Language), which are often used for visualizing waypoints and flight paths in different tools or simulators:
-
-```
-from drone_flightplan import create_wpml
-
-create_wpml(
-    placemark_geojson: Union[str, FeatureCollection, dict],
-    output_file_path: str = "/tmp/",
-)
-```
-
-**Parameters:**
-- `placemark_geojson`: The placemark coordinates to be included in the flight plan mission.
-- `output_file_path`: The output file path for the WPML file.
