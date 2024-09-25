@@ -27,7 +27,6 @@ DJI drones require waypoint files. WPML route files all end with a ".kmz" suffix
 
 For more details, check the [DJI Cloud API documentation](https://github.com/dji-sdk/Cloud-API-Doc/blob/master/docs/en/60.api-reference/00.dji-wpml/10.overview.md).
 
-
 ## Installation
 
 To install the package, use pip:
@@ -53,26 +52,29 @@ calculate_parameters(
 ```
 
 **Parameters:**
+
 - `AGL` (Altitude above ground level in meters) = 115
 - `Forward overlap` = 75
 - `Side overlap` = 75
 
 **Fixed Parameters:**
+
 - `Image interval` = 2 sec
 - `Vertical FOV` = 0.71
 - `Horizontal FOV` = 1.26
 
 **Calculations:**
-- Forward Photo height = AGL * Vertical_FOV = 115 * 0.71 = 81.65
-- Side Photo width = AGL * Horizontal_FOV = 115 * 1.26 = 144
-- Forward overlap distance = Forward photo height * Forward overlap = 75 / 100 * 81.65 = 61.5
-- Side overlap distance = Side photo width * Side overlap = 75 / 100 * 144 = 108
+
+- Forward Photo height = AGL *Vertical_FOV = 115* 0.71 = 81.65
+- Side Photo width = AGL *Horizontal_FOV = 115* 1.26 = 144
+- Forward overlap distance = Forward photo height *Forward overlap = 75 / 100* 81.65 = 61.5
+- Side overlap distance = Side photo width *Side overlap = 75 / 100* 144 = 108
 - Forward spacing = Forward photo height - Forward overlap distance = 81.65 - 61.5 = 20.15
 - Side spacing = Side photo width - Side overlap distance = 144 - 108 = 36
 - Ground speed = Forward spacing / Image interval = 10
 
-
 **Parameters:**
+
 - `waypoints_geojson`: The waypoint coordinates to be included in the flight plan mission.
 - `parameters`: The drone flight parameters in JSON format.
 
@@ -98,6 +100,7 @@ create_waypoint(
 ```
 
 **Parameters:**
+
 - `project_area` (dict): A GeoJSON dictionary representing the project area (Polygon AOI).
 - `agl` (float): Altitude above ground level (the height at which the drone will fly).
 - `gsd` (float): Ground Sampling Distance (resolution of the images captured).
@@ -120,6 +123,7 @@ add_elevation_from_dem(raster_file, points, outfile)
 ```
 
 **Parameters:**
+
 - `raster_file`: Path to the DEM GeoTIFF file.
 - `points`: GeoJSON string with point coordinates.
 - `outfile`: Path for saving the output with added elevation.
@@ -137,7 +141,6 @@ create_placemarks(
 )
 ```
 
-
 ### 5. `create_wpml`
 
 This module is responsible for creating WPML files (Waypoint Markup Language), which are often used for visualizing waypoints and flight paths in different tools or simulators:
@@ -152,6 +155,7 @@ create_wpml(
 ```
 
 **Parameters:**
+
 - `placemark_geojson`: The placemark coordinates to be included in the flight plan mission.
 - `output_file_path`: The output file path for the WPML file.
 
@@ -178,6 +182,7 @@ create_flightplan(
 ```
 
 **Parameters:**
+
 - `aoi`: The area of interest in GeoJSON format.
 - `forward_overlap` (float): Desired forward overlap percentage for the images.
 - `side_overlap` (float): Desired side overlap percentage for the images.
@@ -189,6 +194,3 @@ create_flightplan(
 - `generate_each_points` (bool, optional): True to generate individual waypoints for flight, False to generate waylines.
 - `rotation_angle` (float, optional): The rotation angle (in degrees) for the flight grid. Default is 0.0.
 - `take_off_point` (list[float], optional): A list of GPS coordinates [longitude, latitude] for the takeoff point.
-
-
-

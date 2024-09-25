@@ -41,6 +41,7 @@ def generate_grid_in_aoi(
 
     return points
 
+
 def calculate_distance(point1, point2):
     """
     Calculate Euclidean distance between two points.
@@ -49,7 +50,10 @@ def calculate_distance(point1, point2):
 
 
 def create_path(
-    points: list[Point], forward_spacing: float, generate_3d: bool = False, take_off_point: list[float] = None,
+    points: list[Point],
+    forward_spacing: float,
+    generate_3d: bool = False,
+    take_off_point: list[float] = None,
 ) -> list[dict]:
     """
     Create a continuous path of waypoints from a grid of points.
@@ -322,7 +326,7 @@ def create_waypoint(
 
         if distance_to_last < distance_to_first:
             initial_path.reverse()
-            
+
         initial_point = {
             "coordinates": Point(transformer_to_3857(*take_off_point)),
             "take_photo": False,
@@ -484,12 +488,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# python3 drone_flightplan/waypoints.py \
-# --project_geojson_polygon /home/pradip/2025/drone-flightplan/project.geojson \
-# --altitude_above_ground_level 120 \
-# --forward_overlap 80.0 \
-# --side_overlap 80.0 \
-# --rotation_angle 0 \
-# --output_file_path /home/pradip/2025/drone-flightplan/output.geojson \
-# --take_off_point="85.29530058277646,27.731074894702473"
