@@ -1,5 +1,6 @@
 import logging
 import argparse
+from math import sqrt
 import pyproj
 import geojson
 from shapely.geometry import Point, shape, Polygon
@@ -41,8 +42,18 @@ def generate_grid_in_aoi(
     return points
 
 
+def calculate_distance(point1, point2):
+    """
+    Calculate Euclidean distance between two points.
+    """
+    return sqrt((point1.x - point2.x) ** 2 + (point1.y - point2.y) ** 2)
+
+
 def create_path(
-    points: list[Point], forward_spacing: float, generate_3d: bool = False
+    points: list[Point],
+    forward_spacing: float,
+    generate_3d: bool = False,
+    take_off_point: list[float] = None,
 ) -> list[dict]:
     """
     Create a continuous path of waypoints from a grid of points.
@@ -305,6 +316,17 @@ def create_waypoint(
 
     # Conditionally add takeoff point if available
     if take_off_point:
+
+        # Get the first and last point of the initial path
+        first_path_point = initial_path[0]["coordinates"]
+        last_path_point = initial_path[-1]["coordinates"]
+
+        # Calculate distances from the takeoff point
+        distance_to_first = calculate_distance(Point(transformer_to_3857(*take_off_point)), first_path_point)
+        distance_to_last = calculate_distance(Point(transformer_to_3857(*take_off_point)), last_path_point)
+        if distance_to_last < distance_to_first:
+            initial_path.reverse()
+
         initial_point = {
             "coordinates": Point(transformer_to_3857(*take_off_point)),
             "take_photo": False,
