@@ -316,14 +316,14 @@ def create_waypoint(
 
     # Conditionally add takeoff point if available
     if take_off_point:
+
         # Get the first and last point of the initial path
         first_path_point = initial_path[0]["coordinates"]
         last_path_point = initial_path[-1]["coordinates"]
 
         # Calculate distances from the takeoff point
-        distance_to_first = calculate_distance(Point(*take_off_point), first_path_point)
-        distance_to_last = calculate_distance(Point(*take_off_point), last_path_point)
-
+        distance_to_first = calculate_distance(Point(transformer_to_3857(*take_off_point)), first_path_point)
+        distance_to_last = calculate_distance(Point(transformer_to_3857(*take_off_point)), last_path_point)
         if distance_to_last < distance_to_first:
             initial_path.reverse()
 
