@@ -8,6 +8,7 @@ import argparse
 import json
 from shapely.geometry import shape
 from shapely import distance
+from shapely.ops import transform
 from pyproj import Transformer
 
 
@@ -38,20 +39,23 @@ def extractLines(plan):
 
 def trim(line, threshold):
     """
-    Accepts a waypoint flight line as a list of dicts
+    Accepts a waypoint flight line as a list of dicts from GeoJSON
     Returns a wayline flight line, with the first and last point intact
     but as many as possible of the intermediate points removed
     consistent with not exceeding the threshold of deviation from AGL
     as a list of dicts
     """
-    transformer = Transformer.from_crs(4326, 3857)
+    transformer = Transformer.from_crs(4326, 3857, always_xy=True).transform
     firstpoint = shape(line[0]['geometry'])
     lastpoint = shape(line[-1]['geometry'])
+    fp = transform(transformer, firstpoint)
+    lp = transform(transformer, lastpoint)
     print(f"A line with first point {firstpoint} and last point {lastpoint}"
-          f"for a total distance of {distance(firstpoint, lastpoint)}")
+          f"for a total distance of {distance(fp, lp)}")
     for point in line:
-        pointshape = shape(point['geometry'])
-        #print(pointshape)
+        ps = shape(point['geometry'])
+        pm = transform(transformer, ps)
+        #print(f'{ps}, {pm}')
 
 
 if __name__ == "__main__":
@@ -85,5 +89,6 @@ if __name__ == "__main__":
     for line in lines:
         wayline = trim(line, a.threshold)
         waylines.append(wayline)
+    print(waylines)
 
 
