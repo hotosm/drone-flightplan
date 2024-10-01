@@ -13,6 +13,7 @@ from pyproj import Transformer
 
 
 
+
 def extractLines(plan):
     """
     Accepts a flight plan as a list of dicts
@@ -26,10 +27,11 @@ def extractLines(plan):
     lastheading = None
 
     for point in plan:
+        print(point)
         currentheading = point['properties']['heading']
         # If it's not the first line, and the direction has changed
         if lastheading and currentheading != lastheading:
-         # Yep, changed direction. Add the current line to the list of lines
+            # Yep, changed direction. Add the current line to the list of lines
             # and empty the current line before adding the current point.
             lines.append(currentline)
             currentline = []
@@ -55,7 +57,7 @@ def trim(line, threshold):
         indexedpoint['index'] = point['properties']['index']
         indexedpoint['geometry'] = geom
         tp.append(indexedpoint)
-
+    
     # Keeper points we already know about (first and last for now)
     kp = [tp[0], tp[-1]]
 
@@ -80,15 +82,37 @@ def inject(kp, tp, threshold):
         segment = (currentpoint, endpoint)
         segments.append(segment)
         currentpoint = endpoint
-        
+
+    print("\n************\nSegments:")
     for segment in segments:
         print(segment)
-        run = distance(segment[0]['geometry'], segment[1]['geometry'])
+    
+    for segment in segments:
+        fp = segment[0]['geometry']
+        run = distance(fp, segment[1]['geometry'])
         rise = segment[1]['geometry'].z - segment[0]['geometry'].z
         slope = rise / run
         print(f"Run: {run}, Rise: {rise}, Slope: {slope}")
-        print(f"Index of first point to check: {segment[1]['index']}")
-
+        max_agl_difference = 0
+        max_agl_difference_point = 0
+        injection_point = None
+        for i in range(1, segment[-1]['index'] - segment[0]['index']):
+            pt = tp[i]['geometry']
+            z = pt.z
+            ptrun = distance(fp, pt)
+            expected_z = fp.z + (ptrun * slope)
+            agl_difference = z - expected_z
+            if (abs(agl_difference) > max_agl_difference
+                and agl_difference > threshold):
+                max_agl_difference = agl_difference
+                max_agl_difference_point = tp[i]['index']
+                injection_point = i
+            #print(f"{tp[i]['index']}: {expected_z}, {z}, {agl_difference}")
+        print(f"Max AGL difference in this segment: {max_agl_difference}"
+              f" at point {max_agl_difference_point}")
+        if injection_point:
+            new_segment = [segment[0], tp[injection_point], segment[1]]
+            print(f"\nNew segment: {new_segment}")
         
         
         
@@ -100,15 +124,20 @@ if __name__ == "__main__":
 
     p.add_argument("infile", help="input flight plan as GeoJSON")
     p.add_argument("-th", "--threshold",
-                   help='Allowable altitude deviation in meters', default=2)
+                   help='Allowable altitude deviation in meters', default=5)
     #p.add_argument("outfile", help="output file")
 
     a = p.parse_args()
 
     print(f"\nLet's fuckin' goooo!")
 
-    inplan = json.load(open(a.infile))['features']
+    injson = json.load(open(a.infile))
+    print(injson)
+    print(f"Type: {type(injson)}")
 
+    inplan = injson['features']
+
+    print(len(inplan))
     lines = extractLines(inplan)
 
     print(f"\nThis flight plan consists of {len(lines)} lines, like so:")
