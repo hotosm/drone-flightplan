@@ -62,11 +62,15 @@ def trim(line, threshold):
     # Keeper points (indexes only)we know about (initially first and last)
     kp = [tp[0]['index'], tp[-1]['index']]
 
-    # new keeper points after injection
+    # new keeper segments after injection
     nkp = inject(kp, tp, threshold)
 
-    print(f"\n\nNew keeper points from first round of injection:")
-    print(nkp)
+    while set(inject(nkp, tp, threshold)) != set(nkp):
+        nkp = inject(nkp, tp, threshold)
+
+    nkpset = set(nkp)
+    new_line = [p for p in line if p['properties']['index'] in nkpset]
+    return new_line
 
 def inject(kp, tp, threshold):
     """
@@ -79,24 +83,16 @@ def inject(kp, tp, threshold):
     Returns a new list of keeperpoints
     """
     print(f"\nRunning injection.\nkeeper points in this line: {kp}\n")
-    print(f"Transformed points we're working on:")
-    for p in tp:
-        print(f"{p['index']}, {p['geometry']}")
     currentpoint = kp[0]
     segments = []
     for endpoint in kp[1:]:
         print(f"Going for currentpoint {currentpoint} and endpoint {endpoint}")
-        segment = (tp[currentpoint], tp[endpoint])
+        segment = (tp[currentpoint - kp[0]], tp[endpoint - kp[0]])
         segments.append(segment)
         currentpoint = endpoint
 
     new_keeperpoints = []
 
-    print("\n************\nSegments:")
-    for segment in segments:
-        print(segment)
-
-    new_segments = []
     for segment in segments:
         fp = segment[0]['geometry']
         run = distance(fp, segment[1]['geometry'])
@@ -106,8 +102,9 @@ def inject(kp, tp, threshold):
         max_agl_difference = 0
         max_agl_difference_point = 0
         injection_point = None
-        print("index, expected z, z, AGL Difference")
-        for i in range(segment[0]['index'] + 1, segment[1]['index']):
+        points_to_traverse = segment[1]['index'] - segment[0]['index']
+        #print("index, expected z, z, AGL Difference")
+        for i in range(1, points_to_traverse):
             pt = tp[i]['geometry']
             z = pt.z
             ptrun = distance(fp, pt)
@@ -118,29 +115,25 @@ def inject(kp, tp, threshold):
                 max_agl_difference = agl_difference
                 max_agl_difference_point = tp[i]['index']
                 injection_point = i
-            print(f"{tp[i]['index']}: {expected_z}, {z}, {agl_difference}")
+            #print(f"{tp[i]['index']}: {expected_z}, {z}, {agl_difference}")
         print(f"Max AGL difference in this segment: {max_agl_difference}"
               f" at point {max_agl_difference_point}")
         if injection_point:
             new_segment = [segment[0], tp[injection_point], segment[1]]
-            new_segments.append(new_segment)
+            for new_point in new_segment:
+                new_keeperpoints.append(new_point['index'])
         else:
-            new_segments.append(segment)
+            for point in segment:
+                new_keeperpoints.append(point['index'])
 
-    new_kp_set_indexes = set()
-    for segment in new_segments:
-        for point_maybe_not_unique in segment:
-            new_kp_set_indexes.add(point_maybe_not_unique['index'])
-
-    print(new_kp_set_indexes)
-
-    return new_segments
+    return new_keeperpoints
             
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
 
     p.add_argument("infile", help="input flight plan as GeoJSON")
-    p.add_argument("-th", "--threshold",
+    p.add_argument("outfile", help="output flight plan as GeoJSON")
+    p.add_argument("-th", "--threshold", type=float,
                    help='Allowable altitude deviation in meters', default=5)
     #p.add_argument("outfile", help="output file")
 
@@ -149,23 +142,27 @@ if __name__ == "__main__":
     print(f"\nLet's fuckin' goooo!")
 
     injson = json.load(open(a.infile))
-    #print(injson)
-    #print(f"Type: {type(injson)}")
 
+    inheader = injson['type']
     inplan = injson['features']
 
-    lines = extract_lines(inplan)
+    # Skip the first point which is a dummy waypoint in mid flighplan
+    lines = extract_lines(inplan[1:])
 
     print(f"\nThis flight plan consists of {len(lines)} lines, like so:")
     for line in lines:
         print(f'A line {len(line)} points long')
     
-    waylines = []
+    features = []
     for line in lines:
         wayline = trim(line, a.threshold)
-        waylines.append(wayline)
-#    print(f"\nOk, let's examine the trimmed flight lines:")
-#    for wayline in waylines:
-#        print(wayline)
+        for point in wayline:
+            features.append(point)
 
+    outgeojson = {}
 
+    outgeojson['type'] = injson['type']
+    outgeojson['features'] = features
+        
+    with open(a.outfile, 'w') as output_file:
+        json.dump(outgeojson, output_file)
