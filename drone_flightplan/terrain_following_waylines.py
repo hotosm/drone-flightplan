@@ -3,12 +3,15 @@
 Convert a terrain following drone waypoint mission to a terrain following wayline mission by removing as many waypoints as can be done without deviating beyond a certain threshold from the desired Altitude Above Ground Level.
 """
 
+import sys, os
 import argparse
 import json
 from shapely.geometry import shape
 from shapely import distance
 from shapely.ops import transform
 from pyproj import Transformer
+
+import csv
 
 def extract_lines(plan):
     """
@@ -48,7 +51,8 @@ def extract_lines(plan):
         lastheading = currentheading
     return waylines
 
-def trim(line, threshold):
+#def trim(line, threshold):
+def trim(line, threshold, writer):
     """
     Return a wayline flight line, with the first and last point intact
     but as many as possible of the intermediate points removed
@@ -61,6 +65,9 @@ def trim(line, threshold):
 
     threshold : float
         The allowable deviation from a consistent AGL in m
+
+    writer : csv.writer object
+        Here only passing through to the inject function
 
     Returns
     --------
@@ -87,7 +94,7 @@ def trim(line, threshold):
     # New keeper points after injection of the intermediate points needed
     # to maintain consistent AGL
     # nkp = new keeper points
-    nkp = inject(kp, tp, threshold)
+    nkp = inject(kp, tp, threshold, writer)
 
     # Keep injecting needed points until there aren't any more needed
     # (presumably because the AGL differences are below the threshold)
@@ -96,8 +103,8 @@ def trim(line, threshold):
     # once to check if it changes anything, and then again to actually do it.
     # However, it's working fast for now (and flight plans aren't likely to
     # become all that huge, so whatever, leave it pending profiling.
-    while set(inject(nkp, tp, threshold)) != set(nkp):
-        nkp = inject(nkp, tp, threshold)
+    while set(inject(nkp, tp, threshold, writer)) != set(nkp):
+        nkp = inject(nkp, tp, threshold, False)
 
     # The way we're handling segments in the inject function means that there
     # are duplicate points in the keeperpoints. Make it a set, which anyway
@@ -107,7 +114,7 @@ def trim(line, threshold):
     new_line = [p for p in line if p['properties']['index'] in nkpset]
     return new_line
 
-def inject(kp, tp, threshold):
+def inject(kp, tp, threshold, writer):
     """
     Add the point furthest from consistent AGL (if over threshold)
 
@@ -122,12 +129,17 @@ def inject(kp, tp, threshold):
     threshold : float
         The allowable deviation from a consistent AGL in m
 
+    writer : csv.writer object
+        If None, does nothing. If a csv.writer object, creates a CSV file
+        that provides detailed information about the waypoints being checked
+        for deviation from AGL along the slope of each segment.
+
     Returns:
     --------
     new_keeperpoints : list
         A list of integer waypoint indexes
     """
-    # Create segements between existing keeper waypoints; each segement
+    # Create 2-point segments between existing keeper waypoints; each segment
     # will be examined to see if another one in the middle is needed
     currentpoint = kp[0]
     segments = []
@@ -143,38 +155,45 @@ def inject(kp, tp, threshold):
     # deviation below the threshold
     for segment in segments:
         fp = segment[0]['geometry']
-        run = distance(fp, segment[1]['geometry'])
-        rise = segment[1]['geometry'].z - segment[0]['geometry'].z
-        #print(f"rise: {rise}, run: {run}")
-        # Avoid divide by zero if for some reason two waypoints are on
-        # top of one another
+        lp = segment[1]['geometry']
+        run = distance(fp, lp)
+        rise = lp.z - fp.z
         slope = 0
+        # If run is zero will get divide by zero error, check first
         if run:
             slope = rise / run
         max_agl_difference = 0
         max_agl_difference_point = 0
         injection_point = None
         points_to_traverse = segment[1]['index'] - segment[0]['index']
+
+        pointsinfo = []
+        pointsinfo.append([segment[0]['index'],fp,fp.z,fp.z,0,0,'first'])
+
         for i in range(1, points_to_traverse):
             pt = tp[i]['geometry']
-            z = pt.z
-            ptrun = distance(fp, pt)
-            expected_z = fp.z + (ptrun * slope)
-            agl_difference = z - expected_z
-            if (abs(agl_difference) > max_agl_difference
-                and agl_difference > threshold):
+            z = round(pt.z, 2)
+            ptrun = round(distance(fp, pt),2)
+            expected_z = (round(fp.z + (ptrun * slope),2))
+            agl_difference = abs(round(z - expected_z,2))
+            if (agl_difference > max_agl_difference and
+                agl_difference > threshold):
                 max_agl_difference = agl_difference
                 max_agl_difference_point = tp[i]['index']
                 injection_point = i
-        #print(f"Max AGL difference in this segment: {max_agl_difference}"
-        #      f" at point {max_agl_difference_point}")
+            pointsinfo.append([tp[i]['index'], tp[i]['geometry'],expected_z,
+                               z, ptrun, agl_difference])
+        pointsinfo.append([segment[1]['index'],lp,lp.z,lp.z,rise,run,'last'])
         if injection_point:
             new_segment = [segment[0], tp[injection_point], segment[1]]
             for new_point in new_segment:
                 new_keeperpoints.append(new_point['index'])
+            pointsinfo[injection_point].append('injection point')
         else:
             for point in segment:
                 new_keeperpoints.append(point['index'])
+        if writer:
+            writer.writerows(pointsinfo)
 
     return new_keeperpoints
             
@@ -205,6 +224,8 @@ if __name__ == "__main__":
     p.add_argument("outfile", help="output flight plan as GeoJSON")
     p.add_argument("-th", "--threshold", type=float,
                    help='Allowable altitude deviation in meters', default=5)
+    p.add_argument("-lo", "--line_output", action="store_true",
+                   help="Output a csv file with individual segment data")
 
     a = p.parse_args()
 
@@ -212,6 +233,9 @@ if __name__ == "__main__":
 
     injson = json.load(open(a.infile))
 
+    # Copy the header from the input file
+    # TODO: should copy all other key-value pairs in the input JSON,
+    # 'type' might not be the only one.
     inheader = injson['type']
     inplan = injson['features']
 
@@ -225,10 +249,20 @@ if __name__ == "__main__":
           f"and {len(inplan)} waypoints.")
     #for line in lines:
     #    print(f'A line {len(line)} points long')
+
+
+    writer = None
+    if a.line_output:
+        outcsvfile = os.path.splitext(a.infile)[0] + '_lines.csv'
+        writer = csv.writer(open(outcsvfile, 'w'))
+        writer.writerow(['index', 'point', 'expected z', 'z', 'run',
+                             'agl difference','keypoint'])
     
     features = []
+    features.append(inplan[0])
     for line in lines:
-        wayline = trim(line, a.threshold)
+        wayline = trim(line, a.threshold, writer)
+        #wayline = trim(line, a.threshold)
         for point in wayline:
             features.append(point)
 
