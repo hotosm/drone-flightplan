@@ -51,8 +51,7 @@ def extract_lines(plan):
         lastheading = currentheading
     return waylines
 
-#def trim(line, threshold):
-def trim(line, threshold, writer):
+def trim(line, threshold):
     """
     Return a wayline flight line, with the first and last point intact
     but as many as possible of the intermediate points removed
@@ -65,9 +64,6 @@ def trim(line, threshold, writer):
 
     threshold : float
         The allowable deviation from a consistent AGL in m
-
-    writer : csv.writer object
-        Here only passing through to the inject function
 
     Returns
     --------
@@ -94,7 +90,7 @@ def trim(line, threshold, writer):
     # New keeper points after injection of the intermediate points needed
     # to maintain consistent AGL
     # nkp = new keeper points
-    nkp = inject(kp, tp, threshold, writer)
+    nkp = inject(kp, tp, threshold)
 
     # Keep injecting needed points until there aren't any more needed
     # (presumably because the AGL differences are below the threshold)
@@ -103,8 +99,8 @@ def trim(line, threshold, writer):
     # once to check if it changes anything, and then again to actually do it.
     # However, it's working fast for now (and flight plans aren't likely to
     # become all that huge, so whatever, leave it pending profiling.
-    while set(inject(nkp, tp, threshold, writer)) != set(nkp):
-        nkp = inject(nkp, tp, threshold, False)
+    while set(inject(nkp, tp, threshold)) != set(nkp):
+        nkp = inject(nkp, tp, threshold)
 
     # The way we're handling segments in the inject function means that there
     # are duplicate points in the keeperpoints. Make it a set, which anyway
@@ -114,7 +110,7 @@ def trim(line, threshold, writer):
     new_line = [p for p in line if p['properties']['index'] in nkpset]
     return new_line
 
-def inject(kp, tp, threshold, writer):
+def inject(kp, tp, threshold):
     """
     Add the point furthest from consistent AGL (if over threshold)
 
@@ -128,11 +124,6 @@ def inject(kp, tp, threshold, writer):
 
     threshold : float
         The allowable deviation from a consistent AGL in m
-
-    writer : csv.writer object
-        If None, does nothing. If a csv.writer object, creates a CSV file
-        that provides detailed information about the waypoints being checked
-        for deviation from AGL along the slope of each segment.
 
     Returns:
     --------
@@ -192,11 +183,63 @@ def inject(kp, tp, threshold, writer):
         else:
             for point in segment:
                 new_keeperpoints.append(point['index'])
-        if writer:
-            writer.writerows(pointsinfo)
-
+                
     return new_keeperpoints
-            
+
+def waypoints2waylines(injson, threshold):
+    """
+    Remove as many as possible of the waypoints in a Drone Tasking Manager
+    flight plan, leaving those waypoints needed to prevent the AGL from
+    exceeding a specified threshold.
+
+    Parameters:
+    --------
+    injson : dict
+        A dict created from an GeoJSON flight plan file from the DroneTM
+    threshold : float
+        The allowable deviation from consistent AGL.
+
+    Returns:
+    --------
+    outgeojson : dict
+        A dict suitable for writing to a GeoJSON file using json.dump
+        representing the flight plan, pretty much idential
+    
+    """    
+    # Copy the header from the input file
+    # TODO: should copy all other key-value pairs in the input JSON,
+    # 'type' might not be the only one.
+    inheader = injson['type']
+    inplan = injson['features']
+
+    # Skip the first point which is a dummy waypoint in the middle of
+    # the flightplan area (for safety ascending to working altitude)
+    # TODO: this should probably be a parameter as it's not necessarily
+    # the case that all flight plans will have a dummy first point
+    lines = extract_lines(inplan[1:])
+
+    print(f"\nThis flight plan consists of {len(lines)} lines "
+          f"and {len(inplan)} waypoints.")
+    #for line in lines:
+    #    print(f'A line {len(line)} points long')
+    
+    features = []
+    features.append(inplan[0])
+    for line in lines:
+        wayline = trim(line, threshold)
+        for point in wayline:
+            features.append(point)
+
+    outgeojson = {}
+
+    outgeojson['type'] = injson['type']
+    outgeojson['features'] = features
+
+    print(f"\nThe output flight plan consists of {len(features)} waypoints.")
+
+    return outgeojson
+
+    
 if __name__ == "__main__":
     """
     Remove as many as possible of the waypoints in a Drone Tasking Manager
@@ -233,45 +276,14 @@ if __name__ == "__main__":
 
     injson = json.load(open(a.infile))
 
-    # Copy the header from the input file
-    # TODO: should copy all other key-value pairs in the input JSON,
-    # 'type' might not be the only one.
-    inheader = injson['type']
-    inplan = injson['features']
+    #writer = None
+    #if a.line_output:
+    #    outcsvfile = os.path.splitext(a.infile)[0] + '_lines.csv'
+    #    writer = csv.writer(open(outcsvfile, 'w'))
+    #    writer.writerow(['index', 'point', 'expected z', 'z', 'run',
+    #                         'agl difference','keypoint'])
 
-    # Skip the first point which is a dummy waypoint in the middle of
-    # the flightplan area (for safety ascending to working altitude)
-    # TODO: this should probably be a parameter as it's not necessarily
-    # the case that all flight plans will have a dummy first point
-    lines = extract_lines(inplan[1:])
-
-    print(f"\nThis flight plan consists of {len(lines)} lines "
-          f"and {len(inplan)} waypoints.")
-    #for line in lines:
-    #    print(f'A line {len(line)} points long')
-
-
-    writer = None
-    if a.line_output:
-        outcsvfile = os.path.splitext(a.infile)[0] + '_lines.csv'
-        writer = csv.writer(open(outcsvfile, 'w'))
-        writer.writerow(['index', 'point', 'expected z', 'z', 'run',
-                             'agl difference','keypoint'])
+    outgeojson = waypoints2waylines(injson, a.threshold)
     
-    features = []
-    features.append(inplan[0])
-    for line in lines:
-        wayline = trim(line, a.threshold, writer)
-        #wayline = trim(line, a.threshold)
-        for point in wayline:
-            features.append(point)
-
-    outgeojson = {}
-
-    outgeojson['type'] = injson['type']
-    outgeojson['features'] = features
-
-    print(f"\nThe output flight plan consists of {len(features)} waypoints.")
-        
     with open(a.outfile, 'w') as output_file:
         json.dump(outgeojson, output_file)
