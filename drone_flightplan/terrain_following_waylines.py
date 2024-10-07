@@ -2,6 +2,9 @@
 """
 Convert a terrain following drone waypoint mission to a terrain following wayline mission by removing as many waypoints as can be done without deviating beyond a certain threshold from the desired Altitude Above Ground Level.
 """
+import logging
+
+log = logging.getLogger(__name__)
 
 import sys, os
 import argparse
@@ -158,8 +161,8 @@ def inject(kp, tp, threshold):
         injection_point = None
         points_to_traverse = segment[1]['index'] - segment[0]['index']
 
-        pointsinfo = []
-        pointsinfo.append([segment[0]['index'],fp,fp.z,fp.z,0,0,'first'])
+        #pointsinfo = []
+        #pointsinfo.append([segment[0]['index'],fp,fp.z,fp.z,0,0,'first'])
 
         for i in range(1, points_to_traverse):
             pt = tp[i]['geometry']
@@ -172,14 +175,14 @@ def inject(kp, tp, threshold):
                 max_agl_difference = agl_difference
                 max_agl_difference_point = tp[i]['index']
                 injection_point = i
-            pointsinfo.append([tp[i]['index'], tp[i]['geometry'],expected_z,
-                               z, ptrun, agl_difference])
-        pointsinfo.append([segment[1]['index'],lp,lp.z,lp.z,rise,run,'last'])
+            #pointsinfo.append([tp[i]['index'], tp[i]['geometry'],expected_z,
+            #                   z, ptrun, agl_difference])
+        #pointsinfo.append([segment[1]['index'],lp,lp.z,lp.z,rise,run,'last'])
         if injection_point:
             new_segment = [segment[0], tp[injection_point], segment[1]]
             for new_point in new_segment:
                 new_keeperpoints.append(new_point['index'])
-            pointsinfo[injection_point].append('injection point')
+            #pointsinfo[injection_point].append('injection point')
         else:
             for point in segment:
                 new_keeperpoints.append(point['index'])
@@ -218,10 +221,8 @@ def waypoints2waylines(injson, threshold):
     # the case that all flight plans will have a dummy first point
     lines = extract_lines(inplan[1:])
 
-    print(f"\nThis flight plan consists of {len(lines)} lines "
+    log.info(f"\nThis flight plan consists of {len(lines)} lines "
           f"and {len(inplan)} waypoints.")
-    #for line in lines:
-    #    print(f'A line {len(line)} points long')
     
     features = []
     features.append(inplan[0])
@@ -235,7 +236,7 @@ def waypoints2waylines(injson, threshold):
     outgeojson['type'] = injson['type']
     outgeojson['features'] = features
 
-    print(f"\nThe output flight plan consists of {len(features)} waypoints.")
+    log.info(f"The output flight plan consists of {len(features)} waypoints.")
 
     return outgeojson
 
@@ -272,7 +273,17 @@ if __name__ == "__main__":
 
     a = p.parse_args()
 
-    print(f"\nLet's fuckin' goooo!")
+    verbose = True # set via argparse
+
+    logging.basicConfig(
+        level="DEBUG" if verbose else "INFO",
+        format=("%(asctime)s.%(msecs)03d [%(levelname)s] "
+                "%(name)s | %(funcName)s:%(lineno)d | %(message)s"),
+        datefmt="%y-%m-%d %H:%M:%S",
+        stream=sys.stdout,
+        )
+
+    log.info(f"Let's fuckin' goooo!")
 
     injson = json.load(open(a.infile))
 
