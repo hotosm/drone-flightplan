@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## 0.3.1 (2024-10-14)
+
+### Feat
+
+- add logic to reverse initial path based on proximity to takeoff point
+- update waypoints file
+- update read me docs with all modules
+- update read me docs
+
+### Fix
+
+- update distance calculation of first and last point based on tramsformer 3857 projection
+- remove command to run waypoint
+- remove python keywords from the docs copy command
+- take photo action for waylines flight
+
 ## 0.3.1rc4 (2024-09-12)
 
 ### Feat
