@@ -232,10 +232,8 @@ def waypoints2waylines(injson, threshold):
             features.append(point)
 
     sequential_features = []
-    indexcount = 0
-    for feature in features:
-        feature['properties']['index'] = indexcount
-        indexcount = indexcount + 1
+    for idx, feature in enumerate(features):
+        feature['properties']['index'] = idx
         sequential_features.append(feature)
     outgeojson = {}
 
