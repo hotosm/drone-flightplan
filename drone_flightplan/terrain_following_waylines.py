@@ -231,10 +231,15 @@ def waypoints2waylines(injson, threshold):
         for point in wayline:
             features.append(point)
 
+    sequential_features = []
+    for idx, feature in enumerate(features):
+        feature['properties']['index'] = idx
+        sequential_features.append(feature)
     outgeojson = {}
 
     outgeojson['type'] = injson['type']
-    outgeojson['features'] = features
+    outgeojson['features'] = sequential_features
+    
 
     log.info(f"The output flight plan consists of {len(features)} waypoints.")
 
