@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 import argparse
 import os
 import geojson
@@ -20,7 +22,8 @@ def zip_directory(directory_path, zip_path):
                 zipf.write(
                     os.path.join(root, file),
                     os.path.relpath(
-                        os.path.join(root, file), os.path.join(directory_path, "..")
+                        os.path.join(root, file),
+                        os.path.join(directory_path, "..")
                     ),
                 )
 
@@ -358,13 +361,16 @@ def create_xml(placemarks, finish_action, global_height, output_file_path="/tmp/
     kml = create_kml(mission_config, folder)
 
     tree = ET.ElementTree(kml)
+    # Add indentation to the xml to make it human-readable (pretty-print)
+    ET.indent(tree, space=" ", level=0)
 
     folder_name = "flight"
     os.makedirs(os.path.join(output_file_path, folder_name), exist_ok=True)
     waylines_path = os.path.join(output_file_path, folder_name, "waylines.wpml")
 
     tree.write(waylines_path, encoding="UTF-8", xml_declaration=True)
-    output_file_name = create_zip_file(os.path.join(output_file_path, folder_name))
+    output_file_name = create_zip_file(os.path.join(output_file_path,
+                                                    folder_name))
     return output_file_name
 
 
@@ -374,7 +380,8 @@ def create_wpml(
 ):
     """
     Arguments:
-        placemark_geojson: The placemark coordinates to be included in the flightplan mission
+        placemark_geojson: The placemark coordinates to be included
+                           in the flightplan mission
         output_file_path: The output file path for the wpml file
     Returns:
         wpml file.
@@ -385,27 +392,29 @@ def create_wpml(
 
     # global height is taken from the first point
     try:
-        global_height = placemark_geojson["features"][0]["geometry"]["coordinates"][2]
+        global_height = (placemark_geojson["features"][0]
+                         ["geometry"]["coordinates"][2])
     except IndexError:
         global_height = 100
 
     placemarks = placemark_geojson["features"]
 
-    output_file = create_xml(placemarks, finish_action, global_height, output_file_path)
+    output_file = create_xml(placemarks, finish_action,
+                             global_height, output_file_path)
 
     return output_file
 
 
 def main(args_list: list[str] | None = None):
     parser = argparse.ArgumentParser(
-        description="Generate wpml file for drone missions."
-    )
+        description="Generate wpml file for drone missions.")
     parser.add_argument(
         "--placemark",
         required=True,
         type=str,
-        help="The placemark geojson file to be included in the flightplan mission",
-    )
+        help=("The placemark geojson file to be included in "
+              "the flightplan mission",)
+        )
     parser.add_argument(
         "--outfile",
         required=True,
