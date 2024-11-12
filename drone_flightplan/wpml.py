@@ -10,10 +10,8 @@ from geojson import FeatureCollection
 import xml.etree.ElementTree as ET
 from xml.etree.ElementTree import Element
 
-
 # Instantiate logger
 log = logging.getLogger(__name__)
-
 
 def zip_directory(directory_path, zip_path):
     with zipfile.ZipFile(zip_path, "w") as zipf:
@@ -27,46 +25,10 @@ def zip_directory(directory_path, zip_path):
                     ),
                 )
 
-
 def create_zip_file(waylines_path_uid):
     # Create the wpmz folder if it doesn't exist
     wpmz_path = f"{waylines_path_uid}/wpmz"
     os.makedirs(wpmz_path, exist_ok=True)
-
-    # TODO: Need to check if it is really required. It might not be needed.
-
-    # import xml.etree.ElementTree as ET
-
-    # xml_string = """<?xml version="1.0" encoding="UTF-8"?>
-    # <kml xmlns="http://www.opengis.net/kml/2.2" xmlns:wpml="http://www.dji.com/wpmz/1.0.2">
-    #   <Document>
-    #     <wpml:author>fly</wpml:author>
-    #     <wpml:createTime>1702051864938</wpml:createTime>
-    #     <wpml:updateTime>1702051864938</wpml:updateTime>
-    #     <wpml:missionConfig>
-    #       <wpml:flyToWaylineMode>safely</wpml:flyToWaylineMode>
-    #       <wpml:finishAction>noAction</wpml:finishAction>
-    #       <wpml:exitOnRCLost>executeLostAction</wpml:exitOnRCLost>
-    #       <wpml:executeRCLostAction>hover</wpml:executeRCLostAction>
-    #       <wpml:globalTransitionalSpeed>2.5</wpml:globalTransitionalSpeed>
-    #       <wpml:droneInfo>
-    #         <wpml:droneEnumValue>68</wpml:droneEnumValue>
-    #         <wpml:droneSubEnumValue>0</wpml:droneSubEnumValue>
-    #       </wpml:droneInfo>
-    #     </wpml:missionConfig>
-    #   </Document>
-    # </kml>
-    # """
-
-    # # Parse the XML string
-    # root = ET.fromstring(xml_string)
-
-    # # Create an ElementTree object
-    # tree = ET.ElementTree(root)
-
-    # # Write the ElementTree object to a file
-    # with open(f"{wpmz_path}/template.kml", "wb") as file:
-    #     tree.write(file, encoding="utf-8", xml_declaration=True)
 
     # Read content of template.kml
     with open(f"{waylines_path_uid}/waylines.wpml", "r") as f:
@@ -81,27 +43,28 @@ def create_zip_file(waylines_path_uid):
 
     return output_file_name
 
-
 def take_photo_action(action_group_element: Element, index: str):
     action = ET.SubElement(action_group_element, "wpml:action")
     action_id = ET.SubElement(action, "wpml:actionId")
     action_id.text = str(index)
     action_actuator_func = ET.SubElement(action, "wpml:actionActuatorFunc")
     action_actuator_func.text = "takePhoto"
-    action_actuator_func_param = ET.SubElement(action, "wpml:actionActuatorFuncParam")
+    action_actuator_func_param = ET.SubElement(action,
+                                               "wpml:actionActuatorFuncParam")
     payload_position_index = ET.SubElement(
         action_actuator_func_param, "wpml:payloadPositionIndex"
     )
     payload_position_index.text = "0"
 
-
-def gimble_rotate_action(action_group_element: Element, index: str, gimbal_angle: str):
+def gimbal_rotate_action(action_group_element: Element,
+                         index: str, gimbal_angle: str):
     action1 = ET.SubElement(action_group_element, "wpml:action")
     action1_id = ET.SubElement(action1, "wpml:actionId")
     action1_id.text = str(index)
     action1_actuator_func = ET.SubElement(action1, "wpml:actionActuatorFunc")
     action1_actuator_func.text = "gimbalRotate"
-    action1_actuator_func_param = ET.SubElement(action1, "wpml:actionActuatorFuncParam")
+    action1_actuator_func_param = ET.SubElement(action1,
+                                                "wpml:actionActuatorFuncParam")
     gimbal_heading_yaw_base = ET.SubElement(
         action1_actuator_func_param, "wpml:gimbalHeadingYawBase"
     )
@@ -185,7 +148,8 @@ def create_placemark(placemark):
     waypoint_speed_elem = ET.SubElement(placemark, "wpml:waypointSpeed")
     waypoint_speed_elem.text = str(waypoint_speed)
 
-    waypoint_heading_param = ET.SubElement(placemark, "wpml:waypointHeadingParam")
+    waypoint_heading_param = ET.SubElement(placemark,
+                                           "wpml:waypointHeadingParam")
     wpml_waypoint_heading_mode = ET.SubElement(
         waypoint_heading_param, "wpml:waypointHeadingMode"
     )
@@ -210,7 +174,8 @@ def create_placemark(placemark):
     # )
     # wpml_waypoint_heading_path_mode.text = "followBadArc"
 
-    # wpml_waypoint_turn_param = ET.SubElement(placemark, "wpml:waypointTurnParam")
+    # wpml_waypoint_turn_param = ET.SubElement(placemark,
+    #                                          "wpml:waypointTurnParam")
     # wpml_waypoint_turn_mode = ET.SubElement(
     #     wpml_waypoint_turn_param, "wpml:waypointTurnMode"
     # )
@@ -226,7 +191,8 @@ def create_placemark(placemark):
     action_group1 = ET.SubElement(placemark, "wpml:actionGroup")
     action_group1_id = ET.SubElement(action_group1, "wpml:actionGroupId")
     action_group1_id.text = "1"
-    action_group1_start = ET.SubElement(action_group1, "wpml:actionGroupStartIndex")
+    action_group1_start = ET.SubElement(action_group1,
+                                        "wpml:actionGroupStartIndex")
     action_group1_start.text = str(index)  # Start index
     action_group1_end = ET.SubElement(action_group1, "wpml:actionGroupEndIndex")
     action_group1_end.text = str(index)  # End Index
@@ -242,13 +208,14 @@ def create_placemark(placemark):
         # Take photo action
         take_photo_action(action_group1, "1")
     else:
-        # Gimble rotate action
-        gimble_rotate_action(action_group1, "1", str(gimbal_angle))
+        # Gimbal rotate action
+        gimbal_rotate_action(action_group1, "1", str(gimbal_angle))
 
     action_group2 = ET.SubElement(placemark, "wpml:actionGroup")
     action_group2_id = ET.SubElement(action_group2, "wpml:actionGroupId")
     action_group2_id.text = "2"  # Not always 2
-    action_group2_start = ET.SubElement(action_group2, "wpml:actionGroupStartIndex")
+    action_group2_start = ET.SubElement(action_group2,
+                                        "wpml:actionGroupStartIndex")
     action_group2_start.text = "0"
     action_group2_end = ET.SubElement(action_group2, "wpml:actionGroupEndIndex")
     action_group2_end.text = "1"
@@ -264,7 +231,8 @@ def create_placemark(placemark):
     action2_id.text = "2"  # Not always 2
     action2_actuator_func = ET.SubElement(action2, "wpml:actionActuatorFunc")
     action2_actuator_func.text = "gimbalEvenlyRotate"
-    action2_actuator_func_param = ET.SubElement(action2, "wpml:actionActuatorFuncParam")
+    action2_actuator_func_param = ET.SubElement(action2,
+                                                "wpml:actionActuatorFuncParam")
     gimbal_pitch_rotate_angle2 = ET.SubElement(
         action2_actuator_func_param, "wpml:gimbalPitchRotateAngle"
     )
@@ -287,15 +255,16 @@ def create_mission_config(finish_action_value, global_height):
     finish_action.text = str(finish_action_value)
 
     exit_on_rc_lost = ET.SubElement(mission_config, "wpml:exitOnRCLost")
-    exit_on_rc_lost.text = "executeLostAction"
+    exit_on_rc_lost.text = "goContinue"
 
-    execute_rc_lost_action = ET.SubElement(mission_config, "wpml:executeRCLostAction")
-    execute_rc_lost_action.text = "hover"
+    execute_rc_lost_action = ET.SubElement(mission_config,
+                                           "wpml:executeRCLostAction")
+    execute_rc_lost_action.text = "goContinue"
 
     global_transitional_speed = ET.SubElement(
         mission_config, "wpml:globalTransitionalSpeed"
     )
-    global_transitional_speed.text = "2.5"
+    global_transitional_speed.text = "12.0"
 
     global_rth_height = ET.SubElement(mission_config, "wpml:globalRTHHeight")
     global_rth_height.text = str(global_height)
@@ -327,14 +296,15 @@ def create_folder(placemarks):
     duration = ET.SubElement(folder, "wpml:duration")
     duration.text = "0"
 
-    global_waypoint_turn_mode = ET.SubElement(folder, "wpml:globalWaypointTurnMode")
+    global_waypoint_turn_mode = ET.SubElement(folder,
+                                              "wpml:globalWaypointTurnMode")
     global_waypoint_turn_mode.text = "toPointAndStopWithDiscontinuityCurvature"
 
     straight_line = ET.SubElement(folder, "wpml:globalUseStraightLine")
-    straight_line.text = "0"
+    straight_line.text = "1"
 
     auto_flight_speed = ET.SubElement(folder, "wpml:autoFlightSpeed")
-    auto_flight_speed.text = "2.5"
+    auto_flight_speed.text = "12.0"
 
     for placemark in placemarks:
         placemark = create_placemark(placemark)
@@ -355,7 +325,8 @@ def create_kml(mission_config, folder):
     return kml
 
 
-def create_xml(placemarks, finish_action, global_height, output_file_path="/tmp/"):
+def create_xml(placemarks, finish_action, global_height,
+               output_file_path="/tmp/"):
     mission_config = create_mission_config(finish_action, global_height)
     folder = create_folder(placemarks)
     kml = create_kml(mission_config, folder)
