@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.3.2 (2024-11-27)
+
+### Fix
+
+- add ground speed cap with safety buffer to prevent controller rejection
+
 ## 0.3.1 (2024-10-14)
 
 ### Feat
