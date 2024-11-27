@@ -238,9 +238,10 @@ def create_waypoint(
     generate_3d: bool = False,
     no_fly_zones: dict = None,
     take_off_point: list[float] = None,
+    mode: str = "waylines",
 ) -> str:
     """
-    Create waypoints for a given project area based on specified parameters.
+    Create waypoints or waylines for a given project area based on specified parameters.
 
     Parameters:
         project_area (dict): GeoJSON dictionary representing the project area.
@@ -252,6 +253,7 @@ def create_waypoint(
         generate_each_points (bool): Flag True to generate individual waypoints, False for waylines.
         generate_3d (bool): Flag to determine if 3D waypoints should be generated.
         no_fly_zones (dict, optional): GeoJSON dictionary representing no-fly zones.
+        mode (str): "waypoints" for individual points, "waylines" for path lines.
     Returns:
         geojson: waypoints generated within the project area in the geojson format
 
@@ -316,14 +318,17 @@ def create_waypoint(
 
     # Conditionally add takeoff point if available
     if take_off_point:
-
         # Get the first and last point of the initial path
         first_path_point = initial_path[0]["coordinates"]
         last_path_point = initial_path[-1]["coordinates"]
 
         # Calculate distances from the takeoff point
-        distance_to_first = calculate_distance(Point(transformer_to_3857(*take_off_point)), first_path_point)
-        distance_to_last = calculate_distance(Point(transformer_to_3857(*take_off_point)), last_path_point)
+        distance_to_first = calculate_distance(
+            Point(transformer_to_3857(*take_off_point)), first_path_point
+        )
+        distance_to_last = calculate_distance(
+            Point(transformer_to_3857(*take_off_point)), last_path_point
+        )
         if distance_to_last < distance_to_first:
             initial_path.reverse()
 
@@ -353,8 +358,11 @@ def create_waypoint(
         ]
     )
 
-    # If generating waylines, just add two points at each end
-    waypoints = remove_middle_points(path) if not generate_each_points else path
+    # If mode is "waylines", simplify to only start and end points
+    if mode == "waylines":
+        waypoints = remove_middle_points(path)
+    else:
+        waypoints = path
 
     # If no-fly zones are provided, exclude points that fall inside no-fly zones
     if no_fly_zones:
