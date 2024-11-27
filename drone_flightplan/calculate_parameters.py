@@ -52,6 +52,13 @@ def calculate_parameters(
     side_spacing = side_photo_width - side_overlap_distance
     ground_speed = forward_spacing / image_interval
 
+    # Cap ground speed at 11.5 m/s to avoid problems with the DJI Mini 4 Pro controller.  
+    # Speeds over 12 m/s cause the controller to change the speed to 2.5 m/s, which is too slow.  
+    # Keeping it below 12 m/s ensures the flight plan works correctly.
+    
+    if ground_speed > 12:
+        ground_speed = 11.5
+        
     return {
         "forward_photo_height": round(forward_photo_height, 0),
         "side_photo_width": round(side_photo_width, 0),
