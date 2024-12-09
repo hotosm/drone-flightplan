@@ -7,7 +7,10 @@ from shapely.geometry import Point, shape, Polygon
 from shapely.affinity import rotate
 from shapely.ops import transform
 from shapely.geometry.base import BaseGeometry
-from drone_flightplan.calculate_parameters import calculate_parameters as cp
+
+# from drone_flightplan.calculate_parameters import calculate_parameters as cp
+
+import calculate_parameters as cp
 
 
 log = logging.getLogger(__name__)
@@ -255,7 +258,7 @@ def create_waypoint(
     generate_each_points: bool = False,
     generate_3d: bool = False,
     no_fly_zones: dict = None,
-    take_off_point: list[float] = None,
+    # take_off_point: list[float] = None,
 ) -> str:
     """
     Create waypoints for a given project area based on specified parameters.
@@ -297,7 +300,8 @@ def create_waypoint(
     }
 
     """
-    parameters = cp(forward_overlap, side_overlap, agl, gsd)
+    take_off_point = [-48.505691125287, -1.4614624905464808]
+    parameters = cp.calculate_parameters(forward_overlap, side_overlap, agl, gsd)
     side_spacing = parameters["side_spacing"]
     forward_spacing = parameters["forward_spacing"]
 
@@ -472,12 +476,12 @@ def main():
         required=True,
         help="The output GeoJSON file path for the waypoints.",
     )
-    parser.add_argument(
-        "--take_off_point",
-        required=True,
-        type=validate_coordinates,
-        help="Take off Point Coordinates in 'longitude,latitude' format (e.g., 82.52,28.29).",
-    )
+    # parser.add_argument(
+    #     "--take_off_point",
+    #     required=True,
+    #     type=validate_coordinates,
+    #     help="Take off Point Coordinates in 'longitude,latitude' format (e.g., 82.52,28.29).",
+    # )
     args = parser.parse_args()
 
     with open(args.project_geojson_polygon, "r") as f:
@@ -498,7 +502,7 @@ def main():
         args.generate_each_points,
         args.generate_3d,
         no_fly_zones,
-        args.take_off_point,
+        # args.take_off_point,
     )
 
     with open(args.output_file_path, "w") as f:
