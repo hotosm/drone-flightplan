@@ -6,10 +6,27 @@ import geojson
 from shapely.geometry import Point, shape, Polygon
 from shapely.affinity import rotate
 from shapely.ops import transform
+from shapely.geometry.base import BaseGeometry
 from drone_flightplan.calculate_parameters import calculate_parameters as cp
 
 
 log = logging.getLogger(__name__)
+
+
+def add_buffer_to_aoi(
+    aoi_polygon: BaseGeometry, buffer_distance: float
+) -> BaseGeometry:
+    """
+    Add a buffer around the AOI polygon.
+
+    Parameters:
+        aoi_polygon (BaseGeometry): The Shapely shape representing the area of interest.
+        buffer_distance (float): The distance to buffer around the polygon (in meters).
+
+    Returns:
+        BaseGeometry: The buffered polygon.
+    """
+    return aoi_polygon.buffer(buffer_distance)
 
 
 def generate_grid_in_aoi(
@@ -29,6 +46,7 @@ def generate_grid_in_aoi(
     minx, miny, maxx, maxy = aoi_polygon.bounds
     xpoints = int((maxx - minx) / x_spacing) + 1
     ypoints = int((maxy - miny) / y_spacing) + 1
+    buffered_polygon = add_buffer_to_aoi(aoi_polygon, x_spacing)
 
     points = []
     for yi in range(ypoints):
@@ -36,7 +54,7 @@ def generate_grid_in_aoi(
             x = minx + xi * x_spacing
             y = miny + yi * y_spacing
             point = Point(x, y)
-            if aoi_polygon.contains(point):
+            if buffered_polygon.contains(point):
                 points.append(point)
 
     return points
@@ -154,9 +172,9 @@ def generate_3d_waypoints(
             "coordinates": wp,
             "angle": str(-angle),
             "take_photo": True,
-            "gimbal_angle": "-45"
-            if row_index % 2 == 0
-            else "45",  # Alternate angles based on row index
+            "gimbal_angle": (
+                "-45" if row_index % 2 == 0 else "45"
+            ),  # Alternate angles based on row index
         }
         for wp in reversed(row_points)
     ]
@@ -169,9 +187,9 @@ def generate_3d_waypoints(
             "coordinates": wp,
             "angle": str(angle),
             "take_photo": True,
-            "gimbal_angle": "45"
-            if row_index % 2 == 0
-            else "-45",  # Alternate angles based on row index
+            "gimbal_angle": (
+                "45" if row_index % 2 == 0 else "-45"
+            ),  # Alternate angles based on row index
         }
         for wp in row_points
     ]
@@ -316,14 +334,17 @@ def create_waypoint(
 
     # Conditionally add takeoff point if available
     if take_off_point:
-
         # Get the first and last point of the initial path
         first_path_point = initial_path[0]["coordinates"]
         last_path_point = initial_path[-1]["coordinates"]
 
         # Calculate distances from the takeoff point
-        distance_to_first = calculate_distance(Point(transformer_to_3857(*take_off_point)), first_path_point)
-        distance_to_last = calculate_distance(Point(transformer_to_3857(*take_off_point)), last_path_point)
+        distance_to_first = calculate_distance(
+            Point(transformer_to_3857(*take_off_point)), first_path_point
+        )
+        distance_to_last = calculate_distance(
+            Point(transformer_to_3857(*take_off_point)), last_path_point
+        )
         if distance_to_last < distance_to_first:
             initial_path.reverse()
 
