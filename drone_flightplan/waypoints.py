@@ -44,8 +44,8 @@ def generate_grid_in_aoi(
         list[Point]: A list of Points representing the generated grid within the AOI.
     """
     minx, miny, maxx, maxy = aoi_polygon.bounds
-    xpoints = int((maxx - minx) / x_spacing) + 1
-    ypoints = int((maxy - miny) / y_spacing) + 1
+    xpoints = int((maxx - minx) / x_spacing) + 2
+    ypoints = int((maxy - miny) / y_spacing) + 2
     buffered_polygon = add_buffer_to_aoi(aoi_polygon, x_spacing)
 
     points = []
