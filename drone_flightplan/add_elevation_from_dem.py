@@ -15,7 +15,9 @@ import argparse
 from osgeo import ogr, gdal, osr
 import math
 import struct
+import logging
 
+log = logging.getLogger(__name__)
 
 def raster_data_format_string(input_datatype: str):
     """
@@ -54,7 +56,7 @@ def add_elevation_from_dem(raster_file, points, outfile):
     # and set it to the CRS of the input raster
     rasterSR = osr.SpatialReference()
     rasterSR.ImportFromProj4(r.GetProjection())
-    print(f"\nRaster Coordinate Reference System: \n{rasterSR}")
+    log.info(f"\nRaster Coordinate Reference System: \n{rasterSR}")
 
     # Get the raster band (if it's a DEM, this should be the only band)
     # TODO this would be a good time to check that it's a single-band
@@ -63,9 +65,9 @@ def add_elevation_from_dem(raster_file, points, outfile):
 
     # Determine the data type
     raster_data_type = gdal.GetDataTypeName(band.DataType)
-    print(f"\nRaster band 1 data type: {raster_data_type}")
+    log.info(f"\nRaster band 1 data type: {raster_data_type}")
     struct_data_type = raster_data_format_string(raster_data_type)
-    print(
+    log.info(
         f"The GDAL data type is {raster_data_type}, which hopefully "
         f"corresponds to a struct {struct_data_type} data type"
     )
@@ -80,7 +82,7 @@ def add_elevation_from_dem(raster_file, points, outfile):
     lyr = p.GetLayer()
     pointSR = lyr.GetSpatialRef()
     pointLD = lyr.GetLayerDefn()
-    print(f"\nPoint layer Coordinate Reference System: {pointSR.GetName()}")
+    log.info(f"\nPoint layer Coordinate Reference System: {pointSR.GetName()}")
 
     transform = osr.CoordinateTransformation(pointSR, rasterSR)
 
@@ -111,19 +113,27 @@ def add_elevation_from_dem(raster_file, points, outfile):
         pixcoords = gdal.ApplyGeoTransform(reverse, mapX, mapY)
         pixX = math.floor(pixcoords[0])
         pixY = math.floor(pixcoords[1])
-        elevation = 0
-        try:
-            elevationstruct = band.ReadRaster(pixX, pixY, 1, 1)
-            ele = struct.unpack(struct_data_type, elevationstruct)[0]
-            elevation = round(ele, 1)
-            if elevation == -9999 or elevation == -9999.0:
-                # It's almost certainly a nodata value, possibly over water
+
+        # Check if the pixel coordinates are within the raster bounds
+        if 0 <= pixX < r.RasterXSize and 0 <= pixY < r.RasterYSize:
+            # Valid coordinates, read the elevation value
+            elevation = 0
+            try:
+                elevationstruct = band.ReadRaster(pixX, pixY, 1, 1)
+                ele = struct.unpack(struct_data_type, elevationstruct)[0]
+                elevation = round(ele, 1)
+                if elevation == -9999 or elevation == -9999.0:
+                    # It's almost certainly a nodata value, possibly over water
+                    elevation = 0
+            except Exception as e:
+                log.error(f"Error reading elevation at point ({geom.GetX()}, {geom.GetY()}): {e}")
                 elevation = 0
-        except Exception:
-            # print('Something went wrong with the raster sampling'
-            #      f' at point {geom.GetX()}, {geom.GetY()}')
-            # print(e)
-            pass
+        else:
+            # Point is outside the raster bounds, set elevation to 0 or another fallback value
+            log.info(f"Point ({geom.GetX()}, {geom.GetY()}) is outside the raster bounds.")
+            elevation = 0
+
+        # Create a new point with elevation
         new_point = ogr.Geometry(ogr.wkbPoint)
         new_point.AddPoint(geom.GetX(), geom.GetY(), elevation)
         outFeature = ogr.Feature(featureDefn)
