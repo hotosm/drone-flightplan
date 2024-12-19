@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## 0.3.4rc0 (2024-12-19)
+
+### Feat
+
+- add waypoints support to create_waypoint function
+
+### Fix
+
+- Handle out-of-bounds access in RasterIO and improve logging
+
 ## 0.3.3 (2024-12-09)
 
 ## 0.3.3rc2 (2024-12-09)
