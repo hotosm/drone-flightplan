@@ -252,7 +252,6 @@ def create_waypoint(
     forward_overlap: float,
     side_overlap: float,
     rotation_angle: float = 0.0,
-    generate_each_points: bool = False,
     generate_3d: bool = False,
     no_fly_zones: dict = None,
     take_off_point: list[float] = None,
@@ -268,7 +267,6 @@ def create_waypoint(
         forward_overlap (float): Forward overlap percentage for the waypoints.
         side_overlap (float): Side overlap percentage for the waypoints.
         rotation_angle (float): The rotation angle for the flight grid in degrees.
-        generate_each_points (bool): Flag True to generate individual waypoints, False for waylines.
         generate_3d (bool): Flag to determine if 3D waypoints should be generated.
         no_fly_zones (dict, optional): GeoJSON dictionary representing no-fly zones.
         mode (str): "waypoints" for individual points, "waylines" for path lines.
@@ -461,11 +459,6 @@ def main():
         help="The rotation angle for the flight grid in degrees.",
     )
     parser.add_argument(
-        "--generate_each_points",
-        action="store_true",
-        help="Do you want waypoints or waylines.",
-    )
-    parser.add_argument(
         "--generate_3d", action="store_true", help="Generate 3D imagery."
     )
     parser.add_argument(
@@ -500,7 +493,6 @@ def main():
         args.forward_overlap,
         args.side_overlap,
         args.rotation_angle,
-        args.generate_each_points,
         args.generate_3d,
         no_fly_zones,
         args.take_off_point,
