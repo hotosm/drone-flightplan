@@ -476,6 +476,12 @@ def main():
         type=validate_coordinates,
         help="Take off Point Coordinates in 'longitude,latitude' format (e.g., 82.52,28.29).",
     )
+    parser.add_argument(
+        "--mode",
+        default="waylines",
+        type=str,
+        help="Flight mode (waypoints or waylines).",
+    )
     args = parser.parse_args()
 
     with open(args.project_geojson_polygon, "r") as f:
@@ -496,6 +502,7 @@ def main():
         args.generate_3d,
         no_fly_zones,
         args.take_off_point,
+        args.mode,
     )
 
     with open(args.output_file_path, "w") as f:
