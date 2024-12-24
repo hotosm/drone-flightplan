@@ -300,7 +300,7 @@ def create_waypoint(
 
     """
     parameters = cp(
-        forward_overlap, side_overlap, agl, gsd, drone_type=DroneType.DJI_MINI_4_PRO
+        forward_overlap, side_overlap, agl, gsd, drone_type=drone_type
     )
     side_spacing = parameters["side_spacing"]
     forward_spacing = parameters["forward_spacing"]
