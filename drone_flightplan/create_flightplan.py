@@ -182,6 +182,7 @@ def main():
         args.generate_each_points,
         args.rotation_angle,
         args.take_off_point,
+        args.drone_type,
     )
 
 
