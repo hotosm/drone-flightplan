@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.3.4rc2 (2024-12-24)
+
+### Fix
+
+- missing last lines in line extracting function
+
 ## 0.3.4rc1 (2024-12-23)
 
 ## 0.3.4rc0 (2024-12-19)
