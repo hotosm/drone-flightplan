@@ -257,6 +257,7 @@ def create_waypoint(
     no_fly_zones: dict = None,
     take_off_point: list[float] = None,
     mode: str = "waylines",
+    drone_type= DroneType.DJI_MINI_4_PRO,
 ) -> str:
     """
     Create waypoints or waylines for a given project area based on specified parameters.

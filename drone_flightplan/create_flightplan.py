@@ -25,7 +25,9 @@ def create_flightplan(
     outfile: str = None,
     generate_each_points: bool = False,
     rotation_angle: float = 0.0,
-    take_off_point: list[float] = None,
+    take_off_point: list[float] = None,    
+    drone_type: DroneType = DroneType.DJI_MINI_4_PRO,
+
 ):
     """
     Arguments:
@@ -46,7 +48,7 @@ def create_flightplan(
         agl,
         gsd,
         image_interval,
-        drone_type=DroneType.DJI_MINI_4_PRO,
+        drone_type=drone_type,
     )
 
     waypoints = create_waypoint(
@@ -58,6 +60,7 @@ def create_flightplan(
         rotation_angle,
         generate_each_points,
         take_off_point=take_off_point,
+        drone_type=drone_type,
     )
 
     # Add elevation data to the waypoints
@@ -115,7 +118,14 @@ def main():
         type=float,
         help="The ground sampling distance in cm/px.",
     )
-
+    
+    parser.add_argument(
+        "--drone_type",
+        type=lambda dt: DroneType[dt.upper()],
+        default=DroneType.DJI_MINI_4_PRO,
+        help="The type of drone to use, e.g., DJI_MINI_4_PRO.",
+    )
+    
     parser.add_argument(
         "--forward_overlap",
         type=float,
