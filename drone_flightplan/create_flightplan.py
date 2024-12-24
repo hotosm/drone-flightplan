@@ -8,6 +8,7 @@ from drone_flightplan.waypoints import create_waypoint
 from drone_flightplan.add_elevation_from_dem import add_elevation_from_dem
 from drone_flightplan.create_placemarks import create_placemarks
 from drone_flightplan.wpml import create_wpml
+from drone_flightplan.drone_type import DroneType
 
 # Instantiate logger
 log = logging.getLogger(__name__)
@@ -40,7 +41,12 @@ def create_flightplan(
     """
 
     parameters = calculate_parameters(
-        forward_overlap, side_overlap, agl, gsd, image_interval
+        forward_overlap,
+        side_overlap,
+        agl,
+        gsd,
+        image_interval,
+        drone_type=DroneType.DJI_MINI_4_PRO,
     )
 
     waypoints = create_waypoint(

@@ -19,6 +19,7 @@ import logging
 
 log = logging.getLogger(__name__)
 
+
 def raster_data_format_string(input_datatype: str):
     """
     Returns a format string for unpacking a c-style Struct object based
@@ -126,11 +127,15 @@ def add_elevation_from_dem(raster_file, points, outfile):
                     # It's almost certainly a nodata value, possibly over water
                     elevation = 0
             except Exception as e:
-                log.error(f"Error reading elevation at point ({geom.GetX()}, {geom.GetY()}): {e}")
+                log.error(
+                    f"Error reading elevation at point ({geom.GetX()}, {geom.GetY()}): {e}"
+                )
                 elevation = 0
         else:
             # Point is outside the raster bounds, set elevation to 0 or another fallback value
-            log.info(f"Point ({geom.GetX()}, {geom.GetY()}) is outside the raster bounds.")
+            log.info(
+                f"Point ({geom.GetX()}, {geom.GetY()}) is outside the raster bounds."
+            )
             elevation = 0
 
         # Create a new point with elevation

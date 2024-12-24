@@ -1,6 +1,7 @@
 import logging
 import argparse
 from math import sqrt
+from drone_flightplan.drone_type import DroneType
 import pyproj
 import geojson
 from shapely.geometry import Point, shape, Polygon
@@ -297,7 +298,9 @@ def create_waypoint(
     }
 
     """
-    parameters = cp(forward_overlap, side_overlap, agl, gsd)
+    parameters = cp(
+        forward_overlap, side_overlap, agl, gsd, drone_type=DroneType.DJI_MINI_4_PRO
+    )
     side_spacing = parameters["side_spacing"]
     forward_spacing = parameters["forward_spacing"]
 

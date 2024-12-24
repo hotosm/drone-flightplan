@@ -1,5 +1,6 @@
 import logging
 import argparse
+from drone_flightplan.drone_type import DroneType
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -12,6 +13,7 @@ def calculate_parameters(
     agl: float,
     gsd: float = None,
     image_interval: int = 2,
+    drone_type: DroneType = DroneType.DJI_MINI_4_PRO,
 ):
     """
     Parameters
@@ -34,11 +36,11 @@ def calculate_parameters(
     ground speed = forward spacing / image interval = 10
 
     """
-
-    # Constants ( For DJI Mini 4 Pro)
-    VERTICAL_FOV = 0.71
-    HORIZONTAL_FOV = 1.26
-    GSD_to_AGL_CONST = 29.7
+    # Get the drone specifications from the Enum
+    drone_specs = drone_type.value
+    VERTICAL_FOV = drone_specs["VERTICAL_FOV"]
+    HORIZONTAL_FOV = drone_specs["HORIZONTAL_FOV"]
+    GSD_to_AGL_CONST = drone_specs["GSD_to_AGL_CONST"]
 
     if gsd:
         agl = gsd * GSD_to_AGL_CONST
@@ -52,13 +54,13 @@ def calculate_parameters(
     side_spacing = side_photo_width - side_overlap_distance
     ground_speed = forward_spacing / image_interval
 
-    # Cap ground speed at 11.5 m/s to avoid problems with the DJI Mini 4 Pro controller.  
-    # Speeds over 12 m/s cause the controller to change the speed to 2.5 m/s, which is too slow.  
+    # Cap ground speed at 11.5 m/s to avoid problems with the DJI Mini 4 Pro controller.
+    # Speeds over 12 m/s cause the controller to change the speed to 2.5 m/s, which is too slow.
     # Keeping it below 12 m/s ensures the flight plan works correctly.
-    
+
     if ground_speed > 12:
         ground_speed = 11.5
-        
+
     return {
         "forward_photo_height": round(forward_photo_height, 0),
         "side_photo_width": round(side_photo_width, 0),
@@ -114,6 +116,7 @@ def main():
         args.altitude_above_ground_level,
         args.gsd,
         args.image_interval,
+        args.drone_type,
     )
 
     for key, value in results.items():
