@@ -51,6 +51,11 @@ def extract_lines(plan):
             currentline = []
         currentline.append(point)
         lastheading = currentheading
+
+    # Add the last line to waylines after the loop ends
+    if currentline:
+        waylines.append(currentline)
+
     return waylines
 
 
