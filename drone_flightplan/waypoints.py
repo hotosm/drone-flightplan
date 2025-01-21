@@ -387,12 +387,7 @@ def create_waypoint(
     path.extend(
         [
             {
-                "coordinates": rotate(
-                    point["coordinates"],
-                    -rotation_angle,
-                    origin=centroid,
-                    use_radians=False,
-                ),
+                "coordinates": point["coordinates"],
                 "angle": point["angle"],
                 "take_photo": point["take_photo"],
                 "gimbal_angle": point["gimbal_angle"],
