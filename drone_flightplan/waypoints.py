@@ -30,7 +30,7 @@ def add_buffer_to_aoi(
 
 
 def generate_grid_in_aoi(
-    aoi_polygon: shape, x_spacing: float, y_spacing: float
+    aoi_polygon: shape, x_spacing: float, y_spacing: float, rotation_angle: float = 0.0
 ) -> list[Point]:
     """
     Generate a grid of points within a given Area of Interest (AOI) polygon.
@@ -43,19 +43,56 @@ def generate_grid_in_aoi(
     Returns:
         list[Point]: A list of Points representing the generated grid within the AOI.
     """
-    minx, miny, maxx, maxy = aoi_polygon.bounds
-    xpoints = int((maxx - minx) / x_spacing) + 2
-    ypoints = int((maxy - miny) / y_spacing) + 2
     buffered_polygon = add_buffer_to_aoi(aoi_polygon, x_spacing)
 
+    # Calculate the centroid for rotating the grid around the polygon's center
+    centroid = aoi_polygon.centroid
+
+    # rotate polygon
+    rotated_polygon = rotate(aoi_polygon, 30, origin=centroid, use_radians=False)
+
+    # Get the bounds of the unrotated AOI to set limits for point generation
+    rotated_minx, rotated_miny, rotated_maxx, rotated_maxy = rotated_polygon.bounds
+
+    # original polygon bounds
+    original_minx, original_miny, original_maxx, original_maxy = aoi_polygon.bounds
+
+    # Compute the minimum and maximum bounds considering both the rotated and original polygons
+    minx = min(rotated_minx, original_minx)
+    miny = min(rotated_miny, original_miny)
+    maxx = max(rotated_maxx, original_maxx)
+    maxy = max(rotated_maxy, original_maxy)
+
+    # List to store the points
     points = []
+
+    # Define a grid in the unrotated space
+    xpoints = int((maxx - minx) / x_spacing) + 1
+    ypoints = int((maxy - miny) / y_spacing) + 1
+    current_axis = "x"  # Start with the x-axis
+
+    # Generate points in the unrotated grid
     for yi in range(ypoints):
         for xi in range(xpoints):
+            # Create the point in the unrotated space
             x = minx + xi * x_spacing
             y = miny + yi * y_spacing
             point = Point(x, y)
-            if buffered_polygon.contains(point):
-                points.append(point)
+
+            # Rotate the point using Shapely's rotate function
+            rotated_point = rotate(
+                point, rotation_angle, origin=centroid, use_radians=False
+            )
+
+            # Assign angle based on the current axis
+            angle = -90 if current_axis == "x" else 90
+
+            # Check if the rotated point is inside the original AOI polygon (unrotated polygon)
+            if buffered_polygon.contains(rotated_point):
+                points.append({"coordinates": rotated_point, "angle": angle})
+
+        # Toggle the axis after processing one row
+        current_axis = "y" if current_axis == "x" else "x"
 
     return points
 
