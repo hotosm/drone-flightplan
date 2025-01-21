@@ -121,72 +121,62 @@ def create_path(
     Returns:
         list[dict]: A list of dictionaries representing the waypoints along the path.
     """
-    rows = {}
-    for point in points:
-        row_key = round(point.y, 8)
-        if row_key not in rows:
-            rows[row_key] = []
-        rows[row_key].append(point)
 
-    continuous_path = []
-    for idx, row in enumerate(sorted(rows.keys())):
-        row_points = sorted(rows[row], key=lambda p: p.x)
-        if idx % 2 == 1:
-            row_points.reverse()
+    def process_angle_based_segments(coordinates_list):
+        # Create a deep copy of the original list
+        result_list = coordinates_list.copy()
 
-        # initialize points at the start and end of each row
-        first_point = row_points[0]
-        last_point = row_points[-1]
+        # Find the segments based on angle changes
+        segments = []
+        current_segment = []
+        current_angle = None
 
-        # define coordinates for extra points
-        start_extra_point = Point(
-            first_point.x - (forward_spacing if idx % 2 == 0 else -forward_spacing),
-            first_point.y,
-        )
-        end_extra_point = Point(
-            last_point.x + (forward_spacing if idx % 2 == 0 else -forward_spacing),
-            last_point.y,
-        )
+        for i, coord in enumerate(coordinates_list):
+            if current_angle is None:
+                current_angle = coord["angle"]
 
-        # Add the extra points with no photo taken
-        continuous_path.append(
-            {
-                "coordinates": start_extra_point,
-                "angle": -90 if idx % 2 == 0 else 90,
-                "take_photo": False,
-                "gimbal_angle": "-90",
-            }
-        )
+            if coord["angle"] == current_angle:
+                current_segment.append(i)
+            else:
+                segments.append((current_segment, current_angle))
+                current_segment = [i]
+                current_angle = coord["angle"]
 
-        # Add each point with its associated properties
-        for point in row_points:
-            continuous_path.append(
-                {
-                    "coordinates": point,
-                    "angle": -90 if idx % 2 == 0 else 90,
-                    "take_photo": True,
-                    "gimbal_angle": "-90",
-                }
-            )
+        # Add the last segment if it exists
+        if current_segment:
+            segments.append((current_segment, current_angle))
 
-        # Add the extra point at the end with no photo taken
-        continuous_path.append(
-            {
-                "coordinates": end_extra_point,
-                "angle": -90 if idx % 2 == 0 else 90,
-                "take_photo": False,
-                "gimbal_angle": "-90",
-            }
-        )
+        # Process each segment
+        for segment_indices, angle in segments:
+            # Only reverse segments where angle is -90
+            if angle == -90:
+                # Get the original values for this segment
+                segment_values = [coordinates_list[i] for i in segment_indices]
 
-        if generate_3d:
-            continuous_path.extend(
-                generate_3d_waypoints(
-                    row_points, idx, angle=(-90 if idx % 2 == 0 else 90)
-                )
-            )
+                # Reverse the segment
+                reversed_segment = segment_values[::-1]
 
-    return continuous_path
+                # Replace the values in the result list
+                for new_value, original_index in zip(reversed_segment, segment_indices):
+                    result_list[original_index] = new_value
+
+        return result_list
+
+    data = process_angle_based_segments(points)
+
+    # TODO: add first and last point in each line with take_picture false and rotate the point too.
+
+    new_data = [
+        {
+            "coordinates": x["coordinates"],
+            "angle": x["angle"],
+            "take_photo": True,
+            "gimbal_angle": "-90",
+        }
+        for x in data
+    ]
+
+    return new_data
 
 
 def generate_3d_waypoints(
