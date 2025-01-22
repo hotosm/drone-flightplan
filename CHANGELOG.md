@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.3.4 (2025-01-22)
+
+### Fix
+
+- remove rotate point in final path
+
 ## 0.3.4rc2 (2024-12-24)
 
 ### Fix
