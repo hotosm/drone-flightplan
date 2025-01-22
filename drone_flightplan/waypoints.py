@@ -30,7 +30,7 @@ def add_buffer_to_aoi(
 
 
 def generate_grid_in_aoi(
-    aoi_polygon: shape, x_spacing: float, y_spacing: float
+    aoi_polygon: shape, x_spacing: float, y_spacing: float, rotation_angle: float = 0.0
 ) -> list[Point]:
     """
     Generate a grid of points within a given Area of Interest (AOI) polygon.
@@ -43,19 +43,56 @@ def generate_grid_in_aoi(
     Returns:
         list[Point]: A list of Points representing the generated grid within the AOI.
     """
-    minx, miny, maxx, maxy = aoi_polygon.bounds
-    xpoints = int((maxx - minx) / x_spacing) + 2
-    ypoints = int((maxy - miny) / y_spacing) + 2
     buffered_polygon = add_buffer_to_aoi(aoi_polygon, x_spacing)
 
+    # Calculate the centroid for rotating the grid around the polygon's center
+    centroid = aoi_polygon.centroid
+
+    # rotate polygon
+    rotated_polygon = rotate(aoi_polygon, 30, origin=centroid, use_radians=False)
+
+    # Get the bounds of the unrotated AOI to set limits for point generation
+    rotated_minx, rotated_miny, rotated_maxx, rotated_maxy = rotated_polygon.bounds
+
+    # original polygon bounds
+    original_minx, original_miny, original_maxx, original_maxy = aoi_polygon.bounds
+
+    # Compute the minimum and maximum bounds considering both the rotated and original polygons
+    minx = min(rotated_minx, original_minx)
+    miny = min(rotated_miny, original_miny)
+    maxx = max(rotated_maxx, original_maxx)
+    maxy = max(rotated_maxy, original_maxy)
+
+    # List to store the points
     points = []
+
+    # Define a grid in the unrotated space
+    xpoints = int((maxx - minx) / x_spacing) + 1
+    ypoints = int((maxy - miny) / y_spacing) + 1
+    current_axis = "x"  # Start with the x-axis
+
+    # Generate points in the unrotated grid
     for yi in range(ypoints):
         for xi in range(xpoints):
+            # Create the point in the unrotated space
             x = minx + xi * x_spacing
             y = miny + yi * y_spacing
             point = Point(x, y)
-            if buffered_polygon.contains(point):
-                points.append(point)
+
+            # Rotate the point using Shapely's rotate function
+            rotated_point = rotate(
+                point, rotation_angle, origin=centroid, use_radians=False
+            )
+
+            # Assign angle based on the current axis
+            angle = -90 if current_axis == "x" else 90
+
+            # Check if the rotated point is inside the original AOI polygon (unrotated polygon)
+            if buffered_polygon.contains(rotated_point):
+                points.append({"coordinates": rotated_point, "angle": angle})
+
+        # Toggle the axis after processing one row
+        current_axis = "y" if current_axis == "x" else "x"
 
     return points
 
@@ -70,6 +107,7 @@ def calculate_distance(point1, point2):
 def create_path(
     points: list[Point],
     forward_spacing: float,
+    rotation_angle: float = 0.0,
     generate_3d: bool = False,
     take_off_point: list[float] = None,
 ) -> list[dict]:
@@ -80,76 +118,130 @@ def create_path(
         points (list[Point]): A list of Points representing the grid.
         forward_spacing (float): The spacing between rows of points (in meters).
         generate_3d (bool): Whether to generate additional 3D waypoints for the path.
+        take_off_point (list[float]): Optional takeoff point coordinates.
 
     Returns:
         list[dict]: A list of dictionaries representing the waypoints along the path.
     """
-    rows = {}
-    for point in points:
-        row_key = round(point.y, 8)
-        if row_key not in rows:
-            rows[row_key] = []
-        rows[row_key].append(point)
 
-    continuous_path = []
-    for idx, row in enumerate(sorted(rows.keys())):
-        row_points = sorted(rows[row], key=lambda p: p.x)
-        if idx % 2 == 1:
-            row_points.reverse()
+    def process_angle_based_segments(coordinates_list):
+        # Create a deep copy of the original list
+        result_list = coordinates_list.copy()
 
-        # initialize points at the start and end of each row
-        first_point = row_points[0]
-        last_point = row_points[-1]
+        # Find the segments based on angle changes
+        segments = []
+        current_segment = []
+        current_angle = None
 
-        # define coordinates for extra points
-        start_extra_point = Point(
-            first_point.x - (forward_spacing if idx % 2 == 0 else -forward_spacing),
-            first_point.y,
+        for i, coord in enumerate(coordinates_list):
+            if current_angle is None:
+                current_angle = coord["angle"]
+
+            if coord["angle"] == current_angle:
+                current_segment.append(i)
+            else:
+                segments.append((current_segment, current_angle))
+                current_segment = [i]
+                current_angle = coord["angle"]
+
+        # Add the last segment if it exists
+        if current_segment:
+            segments.append((current_segment, current_angle))
+
+        # Process each segment
+        for segment_indices, angle in segments:
+            # Only reverse segments where angle is -90
+            if angle == -90:
+                # Get the original values for this segment
+                segment_values = [coordinates_list[i] for i in segment_indices]
+
+                # Reverse the segment
+                reversed_segment = segment_values[::-1]
+
+                # Replace the values in the result list
+                for new_value, original_index in zip(reversed_segment, segment_indices):
+                    result_list[original_index] = new_value
+
+        return result_list, segments
+
+    # Process the points and get segments information
+    processed_data, segments = process_angle_based_segments(points)
+
+    # Initialize new data list
+    new_data = []
+
+    # Process each segment to add extra points
+    for segment_indices, angle in segments:
+        segment_points = [processed_data[i] for i in segment_indices]
+
+        # Calculate extra point before first point
+        first_point = segment_points[0]
+        shapely_point = first_point["coordinates"]
+        start_x, start_y = shapely_point.x, shapely_point.y
+
+        if angle == -90:
+            start_x += forward_spacing
+        elif angle == 90:
+            start_x -= forward_spacing
+
+        # Rotate the point using Shapely's rotate function
+        rotated_start_point = rotate(
+            Point(start_x, start_y),
+            rotation_angle,
+            origin=shapely_point,  # Rotate around the first point
+            use_radians=False,
         )
-        end_extra_point = Point(
-            last_point.x + (forward_spacing if idx % 2 == 0 else -forward_spacing),
-            last_point.y,
-        )
 
-        # Add the extra points with no photo taken
-        continuous_path.append(
+        # Add start point
+        new_data.append(
             {
-                "coordinates": start_extra_point,
-                "angle": -90 if idx % 2 == 0 else 90,
+                "coordinates": rotated_start_point,
+                "angle": angle,
                 "take_photo": False,
                 "gimbal_angle": "-90",
             }
         )
 
-        # Add each point with its associated properties
-        for point in row_points:
-            continuous_path.append(
+        # Add all original points in the segment
+        for point in segment_points:
+            new_data.append(
                 {
-                    "coordinates": point,
-                    "angle": -90 if idx % 2 == 0 else 90,
+                    "coordinates": point["coordinates"],
+                    "angle": point["angle"],
                     "take_photo": True,
                     "gimbal_angle": "-90",
                 }
             )
 
-        # Add the extra point at the end with no photo taken
-        continuous_path.append(
+        # Calculate extra point after last point
+        last_point = segment_points[-1]
+        shapely_point = last_point["coordinates"]
+        end_x, end_y = shapely_point.x, shapely_point.y
+
+        # Rotate the point using Shapely's rotate function
+        rotated_end_point = rotate(
+            Point(end_x, end_y),
+            rotation_angle,
+            origin=shapely_point,  # Rotate around the last point
+            use_radians=False,
+        )
+
+        if angle == -90:
+            end_x -= forward_spacing
+        elif angle == 90:
+            end_x += forward_spacing
+
+        # Add end point
+        new_data.append(
             {
-                "coordinates": end_extra_point,
-                "angle": -90 if idx % 2 == 0 else 90,
+                "coordinates": rotated_end_point,
+                "angle": angle,
                 "take_photo": False,
                 "gimbal_angle": "-90",
             }
         )
 
-        if generate_3d:
-            continuous_path.extend(
-                generate_3d_waypoints(
-                    row_points, idx, angle=(-90 if idx % 2 == 0 else 90)
-                )
-            )
-
-    return continuous_path
+    return new_data
 
 
 def generate_3d_waypoints(
@@ -315,19 +407,15 @@ def create_waypoint(
 
     polygon_3857 = transform(transformer_to_3857, polygon)
 
-    # Calculate the centroid for centering the grid
-    centroid = polygon_3857.centroid
-
-    # Rotate the polygon to the specified angle around the centroid
-    rotated_polygon = rotate(
-        polygon_3857, rotation_angle, origin=centroid, use_radians=False
+    # Generate grid within the rotated AOI
+    grid = generate_grid_in_aoi(
+        polygon_3857, forward_spacing, side_spacing, rotation_angle
     )
 
-    # Generate grid within the rotated AOI
-    grid = generate_grid_in_aoi(rotated_polygon, forward_spacing, side_spacing)
-
     # Create path (either waypoints or waylines) and rotate back to original angle
-    initial_path = create_path(grid, forward_spacing, generate_3d=generate_3d)
+    initial_path = create_path(
+        grid, forward_spacing, rotation_angle, generate_3d=generate_3d
+    )
 
     # Path initialization
     path = []
@@ -360,12 +448,7 @@ def create_waypoint(
     path.extend(
         [
             {
-                "coordinates": rotate(
-                    point["coordinates"],
-                    -rotation_angle,
-                    origin=centroid,
-                    use_radians=False,
-                ),
+                "coordinates": point["coordinates"],
                 "angle": point["angle"],
                 "take_photo": point["take_photo"],
                 "gimbal_angle": point["gimbal_angle"],
