@@ -164,7 +164,7 @@ def create_path(
 
     data = process_angle_based_segments(points)
 
-    # TODO: add first and last point in each line with take_picture false and rotate the point too.
+    # TODO: add first and last point in each line with take_picture false and rotate the point too. Also handle take_off point
 
     new_data = [
         {
@@ -342,16 +342,10 @@ def create_waypoint(
 
     polygon_3857 = transform(transformer_to_3857, polygon)
 
-    # Calculate the centroid for centering the grid
-    centroid = polygon_3857.centroid
-
-    # Rotate the polygon to the specified angle around the centroid
-    rotated_polygon = rotate(
-        polygon_3857, rotation_angle, origin=centroid, use_radians=False
-    )
-
     # Generate grid within the rotated AOI
-    grid = generate_grid_in_aoi(rotated_polygon, forward_spacing, side_spacing)
+    grid = generate_grid_in_aoi(
+        polygon_3857, forward_spacing, side_spacing, rotation_angle
+    )
 
     # Create path (either waypoints or waylines) and rotate back to original angle
     initial_path = create_path(grid, forward_spacing, generate_3d=generate_3d)
