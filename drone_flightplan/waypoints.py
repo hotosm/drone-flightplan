@@ -117,6 +117,7 @@ def create_path(
         points (list[Point]): A list of Points representing the grid.
         forward_spacing (float): The spacing between rows of points (in meters).
         generate_3d (bool): Whether to generate additional 3D waypoints for the path.
+        take_off_point (list[float]): Optional takeoff point coordinates.
 
     Returns:
         list[dict]: A list of dictionaries representing the waypoints along the path.
@@ -160,21 +161,68 @@ def create_path(
                 for new_value, original_index in zip(reversed_segment, segment_indices):
                     result_list[original_index] = new_value
 
-        return result_list
+        return result_list, segments
 
-    data = process_angle_based_segments(points)
+    # Process the points and get segments information
+    processed_data, segments = process_angle_based_segments(points)
 
-    # TODO: add first and last point in each line with take_picture false and rotate the point too. Also handle take_off point
+    # Initialize new data list
+    new_data = []
 
-    new_data = [
-        {
-            "coordinates": x["coordinates"],
-            "angle": x["angle"],
-            "take_photo": True,
-            "gimbal_angle": "-90",
-        }
-        for x in data
-    ]
+    # Process each segment to add extra points
+    for segment_indices, angle in segments:
+        segment_points = [processed_data[i] for i in segment_indices]
+
+        # Calculate extra point before first point
+        first_point = segment_points[0]
+        shapely_point = first_point["coordinates"]
+        start_x, start_y = shapely_point.x, shapely_point.y
+
+        if angle == -90:
+            start_x += forward_spacing
+        elif angle == 90:
+            start_x -= forward_spacing
+
+        # Add start point
+        new_data.append(
+            {
+                "coordinates": Point(start_x, start_y),
+                "angle": angle,
+                "take_photo": False,
+                "gimbal_angle": "-90",
+            }
+        )
+
+        # Add all original points in the segment
+        for point in segment_points:
+            new_data.append(
+                {
+                    "coordinates": point["coordinates"],
+                    "angle": point["angle"],
+                    "take_photo": True,
+                    "gimbal_angle": "-90",
+                }
+            )
+
+        # Calculate extra point after last point
+        last_point = segment_points[-1]
+        shapely_point = last_point["coordinates"]
+        end_x, end_y = shapely_point.x, shapely_point.y
+
+        if angle == -90:
+            end_x -= forward_spacing
+        elif angle == 90:
+            end_x += forward_spacing
+
+        # Add end point
+        new_data.append(
+            {
+                "coordinates": Point(end_x, end_y),
+                "angle": angle,
+                "take_photo": False,
+                "gimbal_angle": "-90",
+            }
+        )
 
     return new_data
 
