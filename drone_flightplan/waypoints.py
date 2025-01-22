@@ -107,6 +107,7 @@ def calculate_distance(point1, point2):
 def create_path(
     points: list[Point],
     forward_spacing: float,
+    rotation_angle: float = 0.0,
     generate_3d: bool = False,
     take_off_point: list[float] = None,
 ) -> list[dict]:
@@ -183,10 +184,18 @@ def create_path(
         elif angle == 90:
             start_x -= forward_spacing
 
+        # Rotate the point using Shapely's rotate function
+        rotated_start_point = rotate(
+            Point(start_x, start_y),
+            rotation_angle,
+            origin=shapely_point,  # Rotate around the first point
+            use_radians=False,
+        )
+
         # Add start point
         new_data.append(
             {
-                "coordinates": Point(start_x, start_y),
+                "coordinates": rotated_start_point,
                 "angle": angle,
                 "take_photo": False,
                 "gimbal_angle": "-90",
@@ -209,6 +218,14 @@ def create_path(
         shapely_point = last_point["coordinates"]
         end_x, end_y = shapely_point.x, shapely_point.y
 
+        # Rotate the point using Shapely's rotate function
+        rotated_end_point = rotate(
+            Point(end_x, end_y),
+            rotation_angle,
+            origin=shapely_point,  # Rotate around the last point
+            use_radians=False,
+        )
+
         if angle == -90:
             end_x -= forward_spacing
         elif angle == 90:
@@ -217,7 +234,7 @@ def create_path(
         # Add end point
         new_data.append(
             {
-                "coordinates": Point(end_x, end_y),
+                "coordinates": rotated_end_point,
                 "angle": angle,
                 "take_photo": False,
                 "gimbal_angle": "-90",
@@ -396,7 +413,9 @@ def create_waypoint(
     )
 
     # Create path (either waypoints or waylines) and rotate back to original angle
-    initial_path = create_path(grid, forward_spacing, generate_3d=generate_3d)
+    initial_path = create_path(
+        grid, forward_spacing, rotation_angle, generate_3d=generate_3d
+    )
 
     # Path initialization
     path = []
