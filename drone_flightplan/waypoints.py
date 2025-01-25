@@ -8,6 +8,7 @@ from shapely.affinity import rotate
 from shapely.ops import transform
 from shapely.geometry.base import BaseGeometry
 from drone_flightplan.calculate_parameters import calculate_parameters as cp
+from typing import Optional
 
 
 log = logging.getLogger(__name__)
@@ -110,6 +111,7 @@ def create_path(
     rotation_angle: float = 0.0,
     generate_3d: bool = False,
     take_off_point: list[float] = None,
+    polygon: Optional[Polygon] = None,
 ) -> list[dict]:
     """
     Create a continuous path of waypoints from a grid of points.
@@ -119,10 +121,42 @@ def create_path(
         forward_spacing (float): The spacing between rows of points (in meters).
         generate_3d (bool): Whether to generate additional 3D waypoints for the path.
         take_off_point (list[float]): Optional takeoff point coordinates.
+        polygon (Polygon): Optional Shapely Polygon to filter points.
 
     Returns:
         list[dict]: A list of dictionaries representing the waypoints along the path.
     """
+
+    def filter_points_in_polygon(segment_points, polygon, is_edge_segment=False):
+        """
+        Filter points outside the given polygon. If more than 2 points are outside the polygon,
+        """
+
+        # Edge segments are first and last lines of the grid.
+        # They are ignores to maintain overlap with the adjacent task grid.
+        if not polygon or is_edge_segment:
+            return segment_points
+
+        # Filter points outside the polygon
+        outside_points = [
+            point
+            for point in segment_points
+            if not (
+                polygon.contains(point["coordinates"])
+                or polygon.touches(point["coordinates"])
+            )
+        ]
+
+        # If more than 2 outside points, remove first and last
+        if len(outside_points) > 2:
+            filtered_points = [
+                p
+                for p in segment_points
+                if p not in [outside_points[0], outside_points[-1]]
+            ]
+            return filtered_points
+
+        return segment_points
 
     def process_angle_based_segments(coordinates_list):
         # Create a deep copy of the original list
@@ -170,9 +204,21 @@ def create_path(
     # Initialize new data list
     new_data = []
 
-    # Process each segment to add extra points
-    for segment_indices, angle in segments:
+    for idx, (segment_indices, angle) in enumerate(segments):
+        # Determine if it's a first or last segment
+        is_edge_segment = (idx == 0) or (idx == len(segments) - 1)
+
+        # Get segment points
         segment_points = [processed_data[i] for i in segment_indices]
+
+        # Filter points outside the polygon
+        segment_points = filter_points_in_polygon(
+            segment_points, polygon, is_edge_segment
+        )
+
+        # Skip empty segments
+        if not segment_points:
+            continue
 
         # Calculate extra point before first point
         first_point = segment_points[0]
@@ -202,7 +248,7 @@ def create_path(
             }
         )
 
-        # Add all original points in the segment
+        # Add all points in the segment
         for point in segment_points:
             new_data.append(
                 {
@@ -414,7 +460,11 @@ def create_waypoint(
 
     # Create path (either waypoints or waylines) and rotate back to original angle
     initial_path = create_path(
-        grid, forward_spacing, rotation_angle, generate_3d=generate_3d
+        grid,
+        forward_spacing,
+        rotation_angle,
+        generate_3d=generate_3d,
+        polygon=polygon_3857,
     )
 
     # Path initialization
