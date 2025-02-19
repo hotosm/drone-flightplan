@@ -264,18 +264,18 @@ def create_path(
         shapely_point = last_point["coordinates"]
         end_x, end_y = shapely_point.x, shapely_point.y
 
-        # Rotate the point using Shapely's rotate function
+        if angle == -90:
+            end_x -= forward_spacing
+        elif angle == 90:
+            end_x += forward_spacing
+
+        # Rotate the point AFTER applying the offset
         rotated_end_point = rotate(
             Point(end_x, end_y),
             rotation_angle,
             origin=shapely_point,  # Rotate around the last point
             use_radians=False,
         )
-
-        if angle == -90:
-            end_x -= forward_spacing
-        elif angle == 90:
-            end_x += forward_spacing
 
         # Add end point
         new_data.append(
