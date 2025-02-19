@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.3.5 (2025-02-19)
+
+### Fix
+
+- duplicate points at the edge of a line in waylines
+
 ## 0.3.4 (2025-01-22)
 
 ### Fix
