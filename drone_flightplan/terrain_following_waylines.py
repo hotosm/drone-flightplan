@@ -80,6 +80,10 @@ def trim(line, threshold):
         from the input line, but with fewer points while retaining the
         AGL within the threshold
     """
+    # If the line has fewer than 4 points, return it as is
+    if len(line) <= 4:
+        return line
+
     # Work in meters. Assumes input is in EPSG:4326 (will break if not).
     transformer = Transformer.from_crs(4326, 3857, always_xy=True).transform
 
@@ -92,8 +96,8 @@ def trim(line, threshold):
         indexedpoint["geometry"] = geom
         tp.append(indexedpoint)
 
-    # Keeper points (indexes only)we know about (initially first and last)
-    kp = [tp[0]["index"], tp[-1]["index"]]
+    # Keeper points (indexes only) - now including first two and last two points
+    kp = [tp[0]["index"], tp[1]["index"], tp[-2]["index"], tp[-1]["index"]]
 
     # New keeper points after injection of the intermediate points needed
     # to maintain consistent AGL
