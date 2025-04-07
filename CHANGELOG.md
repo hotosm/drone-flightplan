@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 0.3.7 (2025-04-07)
+
+### Fix
+
+- gimbal angle is set to -80
+- rc lost action updated
+
 ## 0.3.6 (2025-02-27)
 
 ## 0.3.5 (2025-02-19)
