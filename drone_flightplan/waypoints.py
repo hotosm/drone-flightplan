@@ -127,6 +127,8 @@ def create_path(
         list[dict]: A list of dictionaries representing the waypoints along the path.
     """
 
+    # TODO: Make the gimbal angle dynamic. Right now it is static to -80
+
     def filter_points_in_polygon(segment_points, polygon, is_edge_segment=False):
         """
         Filter points outside the given polygon. If more than 2 points are outside the polygon,
@@ -244,7 +246,7 @@ def create_path(
                 "coordinates": rotated_start_point,
                 "angle": angle,
                 "take_photo": False,
-                "gimbal_angle": "-90",
+                "gimbal_angle": "-80",
             }
         )
 
@@ -255,7 +257,7 @@ def create_path(
                     "coordinates": point["coordinates"],
                     "angle": point["angle"],
                     "take_photo": True,
-                    "gimbal_angle": "-90",
+                    "gimbal_angle": "-80",
                 }
             )
 
@@ -283,7 +285,7 @@ def create_path(
                 "coordinates": rotated_end_point,
                 "angle": angle,
                 "take_photo": False,
-                "gimbal_angle": "-90",
+                "gimbal_angle": "-80",
             }
         )
 
@@ -465,7 +467,7 @@ def create_waypoint(
         rotation_angle,
         generate_3d=generate_3d,
         polygon=polygon_3857,
-    )
+    )  # TODO: Make the gimbal angle dynamic
 
     # Path initialization
     path = []
@@ -490,7 +492,7 @@ def create_waypoint(
             "coordinates": Point(transformer_to_3857(*take_off_point)),
             "take_photo": False,
             "angle": 0,
-            "gimbal_angle": "-90",
+            "gimbal_angle": "-80",  # TODO: Make it dynamic
         }
         path.append(initial_point)
 
