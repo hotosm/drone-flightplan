@@ -1,7 +1,7 @@
 # Drone Flightplan
 
 <p align="center">
-  <img src="https://github.com/hotosm/fmtm/blob/main/images/hot_logo.png?raw=true" style="width: 200px;" alt="HOT">
+  <img src="https://raw.githubusercontent.com/hotosm/fmtm/main/docs/images/hot_logo.png" style="width: 200px;" alt="HOT">
 </p>
 
 > [!WARNING]
