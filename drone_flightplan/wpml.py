@@ -7,6 +7,7 @@ from typing import Union
 from geojson import FeatureCollection
 import xml.etree.ElementTree as ET
 from xml.etree.ElementTree import Element
+from drone_flightplan.enums import RCLostOptions, RCLostAction
 
 
 # Instantiate logger
@@ -284,10 +285,10 @@ def create_mission_config(finish_action_value, global_height):
     finish_action.text = str(finish_action_value)
 
     exit_on_rc_lost = ET.SubElement(mission_config, "wpml:exitOnRCLost")
-    exit_on_rc_lost.text = "executeLostAction"
+    exit_on_rc_lost.text = str(RCLostOptions.CONTINUE.value)
 
     execute_rc_lost_action = ET.SubElement(mission_config, "wpml:executeRCLostAction")
-    execute_rc_lost_action.text = "hover"
+    execute_rc_lost_action.text = str(RCLostAction.GO_BACK.value)
 
     global_transitional_speed = ET.SubElement(
         mission_config, "wpml:globalTransitionalSpeed"
