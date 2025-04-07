@@ -3,6 +3,17 @@
 <p align="center">
   <img src="https://github.com/hotosm/fmtm/blob/main/images/hot_logo.png?raw=true" style="width: 200px;" alt="HOT">
 </p>
+
+> [!WARNING]
+>
+> Archived.
+>
+> This repo was moved to be a package in a monorepo.
+>
+> https://github.com/hotosm/drone-tm/tree/development/src/backend/packages/drone-flightplan
+>
+> See: https://github.com/hotosm/drone-tm/pull/521
+
 <p align="center">
   <em>Generates waypoints for drone and creates a flightplan</em>
 </p>
